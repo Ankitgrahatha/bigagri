@@ -1,5 +1,5 @@
-const CACHE = "growta-rewardloop-shell-v2";
-const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest"];
+const CACHE = "growta-rewardloop-shell-v3";
+const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest", "/icon.svg"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
   self.skipWaiting();
@@ -11,9 +11,10 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
+  // Authenticated API traffic must never be cached by the app shell worker.
   if (url.pathname.startsWith("/functions/") || url.pathname.includes("/rest/")) return;
   event.respondWith(fetch(event.request).then(response => {
-    if (response.ok && SHELL.includes(url.pathname)) {
+    if (response.ok && (SHELL.includes(url.pathname) || url.pathname === "/admin.html" || url.pathname === "/admin.js" || url.pathname === "/admin.css")) {
       const copy = response.clone();
       caches.open(CACHE).then(cache => cache.put(event.request, copy));
     }

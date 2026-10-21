@@ -1,0 +1,59 @@
+name: RewardLoop quality gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app.js"
+      - "admin.js"
+      - "admin-settings.js"
+      - "supabase/**"
+      - ".github/workflows/**"
+  push:
+    branches: [main]
+    paths:
+      - "app.js"
+      - "admin.js"
+      - "admin-settings.js"
+      - "supabase/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-and-contract-tests:
+    name: Static checks and API contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check app.js
+          node --check admin.js
+          node --check admin-settings.js
+
+      - name: Run RewardLoop contract and replay regression tests
+        run: |
+          node --test supabase/tests/rewardloop_client_api_contract.test.mjs supabase/tests/rewardloop_claim_replay_security.test.mjs
+
+      - name: Validate read-only boundary smoke script
+        run: |
+          bash -n supabase/tests/rewardloop_cors_smoke_test.sh
+          bash supabase/tests/rewardloop_cors_smoke_test.sh
+
+      - name: Ensure production migrations are not silently deployed by CI
+        run: |
+          test -d supabase/migrations
+          echo "Static checks only. Database tests remain blocked until the full migration baseline and supabase/config.toml are restored."

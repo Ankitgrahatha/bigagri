@@ -1,0 +1,12 @@
+{
+  "name": "Growta RewardLoop",
+  "short_name": "RewardLoop",
+  "description": "Growta rewards for farmers and agricultural partners",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f7f1",
+  "theme_color": "#173d2b",
+  "lang": "hi",
+  "icons": []
+}

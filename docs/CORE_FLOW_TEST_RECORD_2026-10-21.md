@@ -55,3 +55,18 @@ Status remains **NO-GO for an unrestricted real-value campaign** until the remai
 - Supabase Edge Function `rewardloop-api` deployed successfully as version 7 with JWT verification enabled.
 - This deployment does not prove end-to-end browser behavior; a production-origin smoke test and any custom-domain/preview-origin configuration still need verification.
 - Security Advisor still reports leaked-password protection disabled and `rewardloop_admin_settings` RLS enabled without policies. These remain open review items.
+
+
+## Safe CORS smoke test prepared — 2026-10-21
+
+Added `supabase/tests/rewardloop_cors_smoke_test.sh`. It performs three non-mutating checks using curl:
+1. Production-origin OPTIONS preflight returns 204 and the exact allowed-origin header.
+2. An unapproved origin receives 403 and no wildcard CORS header.
+3. POST with no bearer token returns 401.
+
+Run from a shell with curl:
+```bash
+bash supabase/tests/rewardloop_cors_smoke_test.sh
+```
+
+Optional environment variables: `API_URL`, `ALLOWED_ORIGIN`, `BLOCKED_ORIGIN`. This script has been committed but has **not been executed from this workflow**, so the CORS behavior remains deployed but not yet runtime-smoke-tested.

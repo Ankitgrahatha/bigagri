@@ -12,13 +12,20 @@ DECLARE
   v_product constant uuid := '00000000-0000-4000-8000-000000000401';
   v_campaign constant uuid := '00000000-0000-4000-8000-000000000501';
   v_qr constant uuid := '00000000-0000-4000-8000-000000000601';
+  v_qr_other constant uuid := '00000000-0000-4000-8000-000000000602';
   v_request constant uuid := '00000000-0000-4000-8000-000000000701';
+  v_request_other constant uuid := '00000000-0000-4000-8000-000000000702';
   v_token constant text := 'growta-replay-test-token-very-long';
+  v_token_other constant text := 'growta-replay-test-token-second-very-long';
   v_first jsonb;
   v_retry jsonb;
   v_other_actor jsonb;
+  v_same_actor_different_qr jsonb;
+  v_other_actor_new_request jsonb;
+  v_claim_count integer;
   v_ledger_count integer;
   v_ledger_points bigint;
+  v_other_qr_status text;
 BEGIN
   INSERT INTO auth.users(id) VALUES (v_user_a), (v_user_b);
 
@@ -44,11 +51,17 @@ BEGIN
   INSERT INTO public.qr_codes(
     id, tenant_id, product_id, campaign_id, token_hash, status, entitlement_role, points_value, activated_at
   )
-  VALUES (
-    v_qr, v_tenant_id, v_product, v_campaign,
-    encode(extensions.digest(convert_to(v_token, 'UTF8'), 'sha256'), 'hex'),
-    'active', 'farmer', 10, now()
-  );
+  VALUES
+    (
+      v_qr, v_tenant_id, v_product, v_campaign,
+      encode(extensions.digest(convert_to(v_token, 'UTF8'), 'sha256'), 'hex'),
+      'active', 'farmer', 10, now()
+    ),
+    (
+      v_qr_other, v_tenant_id, v_product, v_campaign,
+      encode(extensions.digest(convert_to(v_token_other, 'UTF8'), 'sha256'), 'hex'),
+      'active', 'farmer', 10, now()
+    );
 
   v_first := private.claim_qr(v_user_a, v_token, v_request, 'db-test', 'device-hash-a');
   IF v_first->>'ok' <> 'true'
@@ -67,12 +80,28 @@ BEGIN
     RAISE EXCEPTION 'same-actor retry was not idempotent: first=%, retry=%', v_first, v_retry;
   END IF;
 
+  -- A request ID reused against a different QR must fail, even for the same actor.
+  v_same_actor_different_qr := private.claim_qr(v_user_a, v_token_other, v_request, 'db-test', 'device-hash-a');
+  IF v_same_actor_different_qr->>'outcome' <> 'request_id_conflict'
+     OR v_same_actor_different_qr->>'points_awarded' <> '0'
+     OR v_same_actor_different_qr ? 'claim_id' THEN
+    RAISE EXCEPTION 'same actor reused request ID against another QR: %', v_same_actor_different_qr;
+  END IF;
+
+  -- A different actor reusing the existing request ID sees only a generic conflict.
   v_other_actor := private.claim_qr(v_user_b, v_token, v_request, 'db-test', 'device-hash-b');
-  IF v_other_actor->>'outcome' <> 'already_claimed'
+  IF v_other_actor->>'outcome' <> 'request_id_conflict'
      OR v_other_actor->>'points_awarded' <> '0'
-     OR COALESCE(v_other_actor->>'replayed', 'false') <> 'false'
      OR v_other_actor ? 'claim_id' THEN
-    RAISE EXCEPTION 'other actor received another actor''s replay result: %', v_other_actor;
+    RAISE EXCEPTION 'other actor received prior claim details: %', v_other_actor;
+  END IF;
+
+  -- A fresh request against the already-claimed QR still yields a safe duplicate outcome.
+  v_other_actor_new_request := private.claim_qr(v_user_b, v_token, v_request_other, 'db-test', 'device-hash-b');
+  IF v_other_actor_new_request->>'outcome' <> 'already_claimed'
+     OR v_other_actor_new_request->>'points_awarded' <> '0'
+     OR v_other_actor_new_request ? 'claim_id' THEN
+    RAISE EXCEPTION 'already-claimed QR did not fail safely: %', v_other_actor_new_request;
   END IF;
 
   SELECT count(*), COALESCE(sum(points_delta), 0)
@@ -80,8 +109,18 @@ BEGIN
     FROM public.points_ledger
    WHERE tenant_id = v_tenant_id;
 
-  IF v_ledger_count <> 1 OR v_ledger_points <> 10 THEN
-    RAISE EXCEPTION 'claim retry credited points more than once: count=%, points=%', v_ledger_count, v_ledger_points;
+  SELECT count(*) INTO v_claim_count
+    FROM public.claims
+   WHERE tenant_id = v_tenant_id;
+
+  SELECT status::text INTO v_other_qr_status
+    FROM public.qr_codes
+   WHERE id = v_qr_other AND tenant_id = v_tenant_id;
+
+  IF v_ledger_count <> 1 OR v_ledger_points <> 10
+     OR v_claim_count <> 1 OR v_other_qr_status <> 'active' THEN
+    RAISE EXCEPTION 'idempotency conflicts mutated claim/points: ledger_count=%, points=%, claim_count=%, other_qr_status=%',
+      v_ledger_count, v_ledger_points, v_claim_count, v_other_qr_status;
   END IF;
 
   IF has_function_privilege('anon', 'private.claim_qr(uuid,text,uuid,text,text)', 'EXECUTE') THEN
@@ -94,7 +133,7 @@ BEGIN
     RAISE EXCEPTION 'service_role is missing EXECUTE on private.claim_qr';
   END IF;
 
-  RAISE NOTICE 'PASS: first claim, same-actor replay, cross-actor replay isolation, one ledger credit, and RPC grants';
+  RAISE NOTICE 'PASS: first claim, same-actor replay, cross-actor and cross-QR key conflicts, one ledger credit, and RPC grants';
 END;
 $claim_replay_test$;
 

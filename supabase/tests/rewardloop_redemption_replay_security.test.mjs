@@ -44,9 +44,9 @@ test("partner and reward access are constrained to the reward tenant", () => {
 });
 
 test("redemption creates one reservation, a ledger debit, stock decrement and audit record", () => {
-  const firstDebit = migration.search(/INSERT INTO public\\.points_ledger/i);
-  const stockDebit = migration.search(/UPDATE public\\.rewards\\s+SET stock_quantity\\s*=\\s*stock_quantity\\s*-\\s*1/i);
-  const audit = migration.search(/INSERT INTO public\\.audit_logs/i);
+  const firstDebit = migration.search(/INSERT INTO public\.points_ledger/i);
+  const stockDebit = migration.search(/UPDATE public\.rewards\s+SET stock_quantity\s*=\s*stock_quantity\s*-\s*1/i);
+  const audit = migration.search(/INSERT INTO public\.audit_logs/i);
   assert.ok(firstDebit > 0);
   assert.ok(stockDebit > firstDebit);
   assert.ok(audit > stockDebit);

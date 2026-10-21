@@ -32,7 +32,7 @@ VALUES (
   '00000000-0000-4000-8000-000000008001',
   'Concurrency Test Campaign', 'active',
   now() - interval '1 hour', now() + interval '1 day',
-  100000, 'INR', 1, '{}'::jsonb
+  0, 'INR', 1, '{}'::jsonb
 );
 
 INSERT INTO public.qr_codes(

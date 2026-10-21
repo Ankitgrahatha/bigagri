@@ -205,12 +205,10 @@ Deno.serve(async (req: Request) => {
         const partnerIds = [...new Set(redemptionRows.map(r => r.partner_id))];
         const rewardIds = [...new Set(redemptionRows.map(r => r.reward_id))];
         const [redemptionPartners, redemptionRewards, metricsResult] = await Promise.all([
-          partnerIds.length
-            ? admin.from("partners").select("id,display_name,phone_e164").eq("tenant_id", tenant.id).in("id", partnerIds)
-            : Promise.resolve({ data: [], error: null }),
-          rewardIds.length
-            ? admin.from("rewards").select("id,name,name_hi,is_demo").eq("tenant_id", tenant.id).in("id", rewardIds)
-            : Promise.resolve({ data: [], error: null }),
+          admin.from("partners").select("id,display_name,phone_e164").eq("tenant_id", tenant.id)
+            .in("id", partnerIds.length ? partnerIds : ["00000000-0000-0000-0000-000000000000"]),
+          admin.from("rewards").select("id,name,name_hi,is_demo").eq("tenant_id", tenant.id)
+            .in("id", rewardIds.length ? rewardIds : ["00000000-0000-0000-0000-000000000000"]),
           admin.rpc("rewardloop_admin_dashboard_metrics_internal", {
             p_actor_user_id: user.id,
             p_tenant_id: tenant.id,

@@ -131,7 +131,7 @@ Deno.serve(async (req: Request) => {
       return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
-    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch"].includes(action)) {
+    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption"].includes(action)) {
       const { data: tenant, error: tenantError } = await admin.from("tenants").select("id,name,slug,status").eq("slug", TENANT_SLUG).maybeSingle();
       if (tenantError || !tenant || tenant.status !== "active") return respond(503, { ok: false, error: "tenant_unavailable" });
       const { data: membership, error: membershipError } = await admin.from("tenant_memberships").select("role,status")
@@ -140,15 +140,25 @@ Deno.serve(async (req: Request) => {
       if (!membership) return respond(403, { ok: false, error: "admin_access_required" });
 
       if (action === "admin_dashboard") {
-        const [partners, campaigns, products, batches, redemptions] = await Promise.all([
+        const [partners, campaigns, products, batches, redemptions, rewards] = await Promise.all([
           admin.from("partners").select("id,display_name,phone_e164,role,verification_status,preferred_locale,created_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(100),
           admin.from("campaigns").select("id,name,status,starts_at,ends_at,budget_minor_units,currency").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
           admin.from("products").select("id,sku,name,pack_size,active").eq("tenant_id", tenant.id).order("name").limit(100),
           admin.from("qr_issuance_batches").select("id,product_id,campaign_id,requested_count,points_value,entitlement_role,status,created_at,completed_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
-          admin.from("redemptions").select("id,partner_id,reward_id,points_cost,status,created_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50)
+          admin.from("redemptions").select("id,partner_id,reward_id,points_cost,status,created_at,fulfilled_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
+          admin.from("rewards").select("id,name,name_hi,points_cost,active,is_demo").eq("tenant_id", tenant.id).order("sort_order").limit(100)
         ]);
-        if ([partners, campaigns, products, batches, redemptions].some(x => x.error)) return respond(500, { ok: false, error: "admin_dashboard_load_failed" });
-        return respond(200, { ok: true, tenant, role: membership.role, partners: partners.data || [], campaigns: campaigns.data || [], products: products.data || [], batches: batches.data || [], redemptions: redemptions.data || [] });
+        if ([partners, campaigns, products, batches, redemptions, rewards].some(x => x.error)) return respond(500, { ok: false, error: "admin_dashboard_load_failed" });
+        const partnerById = new Map((partners.data || []).map(p => [p.id, p]));
+        const rewardById = new Map((rewards.data || []).map(r => [r.id, r]));
+        const enrichedRedemptions = (redemptions.data || []).map(r => ({
+          ...r,
+          partner_name: partnerById.get(r.partner_id)?.display_name || "Partner",
+          partner_phone: partnerById.get(r.partner_id)?.phone_e164 || "",
+          reward_name: rewardById.get(r.reward_id)?.name || "Reward",
+          reward_is_demo: rewardById.get(r.reward_id)?.is_demo ?? false
+        }));
+        return respond(200, { ok: true, tenant, role: membership.role, partners: partners.data || [], campaigns: campaigns.data || [], products: products.data || [], batches: batches.data || [], redemptions: enrichedRedemptions });
       }
       if (action === "verify_partner") {
         const partnerId = typeof body.partner_id === "string" ? body.partner_id : "";
@@ -177,6 +187,23 @@ Deno.serve(async (req: Request) => {
         const { data, error } = await admin.rpc("rewardloop_revoke_qr_batch_internal", { p_actor_user_id: user.id, p_tenant_id: tenant.id, p_batch_id: batchId, p_reason: reason });
         if (error) return respond(500, { ok: false, error: "qr_batch_revoke_failed" });
         return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_revoke_response" });
+      }
+      if (action === "resolve_redemption") {
+        const redemptionId = typeof body.redemption_id === "string" ? body.redemption_id : "";
+        const status = typeof body.status === "string" ? body.status : "";
+        const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(redemptionId) || !["fulfilled", "cancelled", "rejected"].includes(status) || (status !== "fulfilled" && reason.length < 5)) {
+          return respond(400, { ok: false, error: "invalid_redemption_resolution" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_resolve_redemption_internal", {
+          p_actor_user_id: user.id,
+          p_tenant_id: tenant.id,
+          p_redemption_id: redemptionId,
+          p_new_status: status,
+          p_reason: reason || null,
+        });
+        if (error) return respond(500, { ok: false, error: "redemption_resolution_failed" });
+        return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
       }
     }
 

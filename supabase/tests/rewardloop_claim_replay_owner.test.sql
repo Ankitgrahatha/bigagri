@@ -49,7 +49,7 @@ BEGIN
   IF v_result_b->>'claim_id' IS NOT NULL
      OR v_result_b->>'points_awarded'<>'0'
      OR v_result_b->>'replayed'='true'
-     OR v_result_b->>'outcome' NOT IN ('ineligible','already_claimed') THEN
+     OR v_result_b->>'outcome' <> 'request_id_conflict' THEN
     RAISE EXCEPTION 'claim replay data leaked across actors: %',v_result_b;
   END IF;
 

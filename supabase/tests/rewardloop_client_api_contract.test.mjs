@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const client = readFileSync(new URL("../app.js", import.meta.url), "utf8");
-const api = readFileSync(new URL("../supabase/functions/rewardloop-api/index.ts", import.meta.url), "utf8");
+const client = readFileSync(new URL("../../app.js", import.meta.url), "utf8");
+const api = readFileSync(new URL("../functions/rewardloop-api/index.ts", import.meta.url), "utf8");
 
 test("farmer onboarding sends fields accepted by the API", () => {
   assert.match(client, /api\("profile",\s*\{\s*display_name:\s*displayName,\s*phone_e164:\s*phone,\s*preferred_locale:/);

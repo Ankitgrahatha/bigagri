@@ -530,7 +530,7 @@ begin
  insert into public.scan_events(tenant_id,qr_code_id,actor_user_id,outcome,request_id,app_version,device_ref_hash) values(v_qr.tenant_id,v_qr.id,p_actor_user_id,'accepted',p_request_id,p_app_version,p_device_ref_hash) on conflict(tenant_id,request_id) do nothing;
  insert into public.audit_logs(tenant_id,actor_user_id,action,entity_type,entity_id,request_id,after_data) values(v_qr.tenant_id,p_actor_user_id,'qr_claim_accepted','claim',v_claim_id,p_request_id,jsonb_build_object('points_awarded',v_qr.points_value,'campaign_id',v_qr.campaign_id));
  return jsonb_build_object('ok',true,'outcome','accepted','claim_id',v_claim_id,'points_awarded',v_qr.points_value,'replayed',false);
-end $function$
+end $function$;
 
 
 CREATE OR REPLACE FUNCTION private.create_rewardloop_campaign(p_actor_user_id uuid, p_tenant_id uuid, p_name text, p_starts_at timestamp with time zone, p_ends_at timestamp with time zone, p_budget_minor_units bigint)
@@ -587,7 +587,7 @@ begin
  update public.qr_issuance_batches set status='issued',completed_at=now() where id=v_batch_id;
  insert into public.audit_logs(tenant_id,actor_user_id,action,entity_type,entity_id,after_data) values(p_tenant_id,p_actor_user_id,'qr_batch_issued','qr_issuance_batch',v_batch_id,jsonb_build_object('count',p_count,'product_id',p_product_id,'campaign_id',p_campaign_id,'points_value',p_points_value,'entitlement_role',v_role));
  return jsonb_build_object('ok',true,'batch_id',v_batch_id,'count',p_count,'points_value',p_points_value,'entitlement_role',v_role,'codes',v_codes);
-end $function$
+end $function$;
 
 
 CREATE OR REPLACE FUNCTION private.redeem_reward(p_actor_user_id uuid, p_reward_id uuid, p_request_key text)
@@ -615,7 +615,7 @@ begin
  if v_reward.stock_quantity is not null then update public.rewards set stock_quantity=stock_quantity-1,updated_at=now() where id=v_reward.id; end if;
  insert into public.audit_logs(tenant_id,actor_user_id,action,entity_type,entity_id,after_data) values(v_partner.tenant_id,p_actor_user_id,'reward_redemption_reserved','redemption',v_redemption_id,jsonb_build_object('reward_id',v_reward.id,'points_cost',v_reward.points_cost));
  return jsonb_build_object('ok',true,'redemption_id',v_redemption_id,'status','reserved','points_cost',v_reward.points_cost,'balance_after',v_balance-v_reward.points_cost,'replayed',false);
-end $function$
+end $function$;
 
 
 CREATE OR REPLACE FUNCTION private.resolve_redemption(p_actor_user_id uuid, p_tenant_id uuid, p_redemption_id uuid, p_new_status text, p_reason text)
@@ -724,7 +724,7 @@ begin
  update public.qr_issuance_batches set status='revoked' where id=p_batch_id and tenant_id=p_tenant_id;
  insert into public.audit_logs(tenant_id,actor_user_id,action,entity_type,entity_id,reason,after_data) values(p_tenant_id,p_actor_user_id,'qr_batch_revoked','qr_issuance_batch',p_batch_id,trim(p_reason),jsonb_build_object('unclaimed_codes_revoked',v_revoked));
  return jsonb_build_object('ok',true,'batch_id',p_batch_id,'unclaimed_codes_revoked',v_revoked);
-end $function$
+end $function$;
 
 
 CREATE OR REPLACE FUNCTION private.set_rewardloop_campaign_status(p_actor_user_id uuid, p_tenant_id uuid, p_campaign_id uuid, p_new_status text, p_reason text)
@@ -755,7 +755,7 @@ begin
   insert into public.audit_logs(tenant_id,actor_user_id,action,entity_type,entity_id,reason,before_data,after_data)
   values(p_tenant_id,p_actor_user_id,'campaign_status_changed','campaign',v_campaign.id,nullif(trim(coalesce(p_reason,'')),''),jsonb_build_object('status',v_campaign.status),jsonb_build_object('status',p_new_status));
   return jsonb_build_object('ok',true,'campaign_id',v_campaign.id,'status',p_new_status);
-end $function$
+end $function$;
 
 
 CREATE OR REPLACE FUNCTION private.verify_partner(p_actor_user_id uuid, p_tenant_id uuid, p_partner_id uuid, p_new_status text, p_reason text DEFAULT NULL::text)
@@ -775,7 +775,7 @@ begin
  insert into public.audit_logs(tenant_id,actor_user_id,action,entity_type,entity_id,reason,before_data,after_data)
  values(p_tenant_id,p_actor_user_id,'partner_verification_changed','partner',v_partner.id,nullif(trim(coalesce(p_reason,'')),''),jsonb_build_object('verification_status',v_partner.verification_status),jsonb_build_object('verification_status',p_new_status));
  return jsonb_build_object('ok',true,'partner_id',v_partner.id,'verification_status',p_new_status);
-end $function$
+end $function$;
 
 
 CREATE OR REPLACE FUNCTION public.rewardloop_claim_qr_internal(p_actor_user_id uuid, p_token text, p_request_id uuid, p_app_version text DEFAULT NULL::text, p_device_ref_hash text DEFAULT NULL::text)

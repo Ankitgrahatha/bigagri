@@ -562,9 +562,7 @@ begin
     jsonb_build_object('name',trim(p_name),'status','draft','starts_at',p_starts_at,'ends_at',p_ends_at,'budget_minor_units',p_budget_minor_units,'currency','INR'));
   return jsonb_build_object('ok',true,'campaign_id',v_campaign_id,'status','draft');
 end
-$function$
-
-
+$function$;
 CREATE OR REPLACE FUNCTION private.issue_qr_batch(p_actor_user_id uuid, p_tenant_id uuid, p_campaign_id uuid, p_product_id uuid, p_count integer, p_points_value integer, p_entitlement_role text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -708,9 +706,7 @@ begin
     'balance_after',v_balance
   );
 end
-$function$
-
-
+$function$;
 CREATE OR REPLACE FUNCTION private.revoke_qr_batch(p_actor_user_id uuid, p_tenant_id uuid, p_batch_id uuid, p_reason text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -818,9 +814,7 @@ CREATE OR REPLACE FUNCTION public.rewardloop_resolve_redemption_internal(p_actor
  SET search_path TO 'pg_catalog', 'extensions', 'public', 'private'
 AS $function$
   select private.resolve_redemption(p_actor_user_id,p_tenant_id,p_redemption_id,p_new_status,p_reason);
-$function$
-
-
+$function$;
 CREATE OR REPLACE FUNCTION public.rewardloop_revoke_qr_batch_internal(p_actor_user_id uuid, p_tenant_id uuid, p_batch_id uuid, p_reason text)
  RETURNS jsonb
  LANGUAGE sql

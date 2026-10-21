@@ -33,7 +33,7 @@ BEGIN
   INSERT INTO public.products(id,tenant_id,sku,name,active,metadata)
   VALUES(v_product,v_tenant,'METRICS-SKU','Metrics Product',true,'{}'::jsonb);
   INSERT INTO public.campaigns(id,tenant_id,name,status,starts_at,ends_at,budget_minor_units,currency,rules_version,rules)
-  VALUES(v_campaign,v_tenant,'Metrics Active Campaign','active',now()-interval '1 hour',now()+interval '1 day',10000,'INR',1,'{}'::jsonb);
+  VALUES(v_campaign,v_tenant,'Metrics Active Campaign','active',now()-interval '1 hour',now()+interval '1 day',0,'INR',1,'{}'::jsonb);
   INSERT INTO public.qr_issuance_batches(
     id,tenant_id,product_id,campaign_id,created_by,requested_count,points_value,entitlement_role,status
   ) VALUES

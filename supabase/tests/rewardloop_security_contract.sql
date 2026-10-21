@@ -65,7 +65,7 @@ begin
   if not exists (
     select 1 from pg_policies
     where schemaname = 'public' and tablename = 'qr_codes'
-      and cmd = 'ALL' and 'anon' = any(roles) and 'authenticated' = any(roles)
+      and cmd = 'ALL' and 'anon'::name = any(roles) and 'authenticated'::name = any(roles)
       and coalesce(qual, '') = 'false'
       and coalesce(with_check, '') = 'false'
   ) then

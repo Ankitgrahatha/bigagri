@@ -39,3 +39,13 @@ The admin console lists redemption requests with partner and reward names. For r
 - **Mark fulfilled** records fulfilment without refunding spent points.
 - **Cancel & refund** requires a reason, changes the status to cancelled, refunds the points through the ledger, restores finite reward stock, and records an audit event.
 - Resolution is transactional and row-locked; resolved requests cannot be processed a second time.
+
+
+## Campaign operations
+
+- Create new campaigns from the admin console; new campaigns are always created in `draft`.
+- Configure the start/end dates and budget before activation.
+- Activation is blocked if the campaign has not started, has expired, or the tenant has no active product.
+- Pause/archive actions require a reason and are written to the audit log.
+- Campaign transitions are executed through service-role-only RPC wrappers and re-check active admin membership server-side.
+- A draft campaign does not accept QR claims. Do not activate a campaign for real packaging until the offer, budget, eligible products, QR batch and fulfilment process are approved.

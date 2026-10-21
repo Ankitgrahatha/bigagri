@@ -37,3 +37,11 @@ test("browser API client never embeds a service-role credential", () => {
   assert.doesNotMatch(client, /SUPABASE_SERVICE_ROLE_KEY|service_role/i);
   assert.match(api, /SUPABASE_SERVICE_ROLE_KEY/);
 });
+
+test("account balance is summed across ledger pages, not only the recent activity feed", () => {
+  assert.match(client, /async function loadPointsBalance\(tenantId, partnerId\)/);
+  assert.match(client, /\.range\(offset, offset \+ pageSize - 1\)/);
+  assert.match(client, /loadPointsBalance\(tenant\.id, state\.profile\.id\)/);
+  assert.match(client, /state\.balance = balance;/);
+  assert.doesNotMatch(client, /state\.balance = state\.ledger\.reduce/);
+});

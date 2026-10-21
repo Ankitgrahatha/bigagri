@@ -74,6 +74,28 @@ async function getTenant() {
   state.tenant = data;
   return data;
 }
+// Sum every ledger page for the account balance; the visible activity feed stays capped at 30.
+async function loadPointsBalance(tenantId, partnerId) {
+  const pageSize = 1000;
+  let offset = 0;
+  let balance = 0;
+  while (true) {
+    const { data, error } = await supabase.from("points_ledger")
+      .select("id,points_delta,created_at")
+      .eq("tenant_id", tenantId)
+      .eq("partner_id", partnerId)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    const rows = data || [];
+    balance += rows.reduce((sum, item) => sum + Number(item.points_delta || 0), 0);
+    if (rows.length < pageSize) break;
+    offset += pageSize;
+  }
+  return balance;
+}
+
 async function loadDashboard() {
   if (!state.session) return;
   try {
@@ -87,15 +109,16 @@ async function loadDashboard() {
     state.profile = profileRes.data;
     state.rewards = rewardsRes.data || [];
     if (state.profile) {
-      const [ledgerRes, redemptionRes] = await Promise.all([
+      const [ledgerRes, redemptionRes, balance] = await Promise.all([
         supabase.from("points_ledger").select("id,entry_type,points_delta,reason_code,created_at").eq("tenant_id", tenant.id).eq("partner_id", state.profile.id).order("created_at", { ascending: false }).limit(30),
-        supabase.from("redemptions").select("id,reward_id,points_cost,status,created_at,fulfilled_at").eq("tenant_id", tenant.id).eq("partner_id", state.profile.id).order("created_at", { ascending: false }).limit(10)
+        supabase.from("redemptions").select("id,reward_id,points_cost,status,created_at,fulfilled_at").eq("tenant_id", tenant.id).eq("partner_id", state.profile.id).order("created_at", { ascending: false }).limit(10),
+        loadPointsBalance(tenant.id, state.profile.id)
       ]);
       if (ledgerRes.error) throw ledgerRes.error;
       if (redemptionRes.error) throw redemptionRes.error;
       state.ledger = ledgerRes.data || [];
       state.redemptions = redemptionRes.data || [];
-      state.balance = state.ledger.reduce((sum, item) => sum + Number(item.points_delta || 0), 0);
+      state.balance = balance;
     } else { state.ledger = []; state.redemptions = []; state.balance = 0; }
     render();
   } catch (error) {

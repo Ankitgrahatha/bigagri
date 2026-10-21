@@ -2,6 +2,17 @@ name: RewardLoop safe smoke tests
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/tests/rewardloop_cors_smoke_test.sh"
+      - "supabase/tests/rewardloop_client_api_contract.test.mjs"
+      - "supabase/functions/rewardloop-api/**"
+      - "app.js"
+      - "admin.js"
+      - "admin-settings.js"
+      - "docs/REPOSITORY_OF_RECORD.md"
+      - ".github/workflows/rewardloop-smoke-tests.yml"
   push:
     branches: [main]
     paths:

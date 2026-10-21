@@ -229,7 +229,7 @@ async function handleAuth(event) {
     } else if (state.authMode === "signup") {
       const displayName = String(fd.get("name") || "").trim();
       const phone = String(fd.get("phone") || "").trim();
-      if (phone && !/^\\+[1-9]\\d{7,14}$/.test(phone)) throw new Error("phone_must_be_e164");
+      if (phone && !/^\+[1-9]\d{7,14}$/.test(phone)) throw new Error("phone_must_be_e164");
       const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin, data: { display_name: displayName, preferred_locale: state.lang } } });
       if (error) throw error;
       if (data.session) {

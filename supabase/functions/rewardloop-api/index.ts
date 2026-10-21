@@ -131,7 +131,7 @@ Deno.serve(async (req: Request) => {
       return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
-    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption"].includes(action)) {
+    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign"].includes(action)) {
       const { data: tenant, error: tenantError } = await admin.from("tenants").select("id,name,slug,status").eq("slug", TENANT_SLUG).maybeSingle();
       if (tenantError || !tenant || tenant.status !== "active") return respond(503, { ok: false, error: "tenant_unavailable" });
       const { data: membership, error: membershipError } = await admin.from("tenant_memberships").select("role,status")
@@ -187,6 +187,36 @@ Deno.serve(async (req: Request) => {
         const { data, error } = await admin.rpc("rewardloop_revoke_qr_batch_internal", { p_actor_user_id: user.id, p_tenant_id: tenant.id, p_batch_id: batchId, p_reason: reason });
         if (error) return respond(500, { ok: false, error: "qr_batch_revoke_failed" });
         return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_revoke_response" });
+      }
+      if (action === "create_campaign") {
+        const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
+        const startsAt = typeof body.starts_at === "string" && body.starts_at ? new Date(body.starts_at) : null;
+        const endsAt = typeof body.ends_at === "string" && body.ends_at ? new Date(body.ends_at) : null;
+        const budget = Number(body.budget_minor_units);
+        if (name.length < 3 || !Number.isSafeInteger(budget) || budget < 0 || budget > 1000000000000 ||
+            (startsAt && !Number.isFinite(startsAt.getTime())) || (endsAt && !Number.isFinite(endsAt.getTime()))) {
+          return respond(400, { ok: false, error: "invalid_campaign_details" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_create_campaign_internal", {
+          p_actor_user_id: user.id, p_tenant_id: tenant.id, p_name: name,
+          p_starts_at: startsAt ? startsAt.toISOString() : null,
+          p_ends_at: endsAt ? endsAt.toISOString() : null, p_budget_minor_units: budget
+        });
+        if (error) return respond(500, { ok: false, error: "campaign_create_failed" });
+        return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_campaign_response" });
+      }
+      if (action === "set_campaign_status") {
+        const campaignId = typeof body.campaign_id === "string" ? body.campaign_id : "";
+        const status = typeof body.status === "string" ? body.status : "";
+        const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+        if (!/^[0-9a-f-]{36}$/i.test(campaignId) || !["active", "paused", "archived"].includes(status) || (status !== "active" && reason.length < 5)) {
+          return respond(400, { ok: false, error: "invalid_campaign_status_request" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_set_campaign_status_internal", {
+          p_actor_user_id: user.id, p_tenant_id: tenant.id, p_campaign_id: campaignId, p_new_status: status, p_reason: reason || null
+        });
+        if (error) return respond(500, { ok: false, error: "campaign_status_update_failed" });
+        return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_campaign_response" });
       }
       if (action === "resolve_redemption") {
         const redemptionId = typeof body.redemption_id === "string" ? body.redemption_id : "";

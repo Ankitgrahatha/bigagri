@@ -1,0 +1,22 @@
+name: RewardLoop safe smoke tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/tests/rewardloop_cors_smoke_test.sh"
+      - ".github/workflows/rewardloop-smoke-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cors-auth-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run read-only production boundary checks
+        run: bash supabase/tests/rewardloop_cors_smoke_test.sh

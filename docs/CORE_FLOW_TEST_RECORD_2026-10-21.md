@@ -70,3 +70,8 @@ bash supabase/tests/rewardloop_cors_smoke_test.sh
 ```
 
 Optional environment variables: `API_URL`, `ALLOWED_ORIGIN`, `BLOCKED_ORIGIN`. This script has been committed but has **not been executed from this workflow**, so the CORS behavior remains deployed but not yet runtime-smoke-tested.
+
+
+## CI runner added — 2026-10-21
+
+Added `.github/workflows/rewardloop-smoke-tests.yml` to run the read-only CORS/auth smoke script on relevant pushes to `main` and on manual dispatch. The workflow uses GitHub-hosted Ubuntu and requires no Supabase branch or secret. A workflow run was not yet visible when checked, so execution status is pending. If GitHub Actions is disabled for this repository, enable Actions or run the script from a network-enabled shell.

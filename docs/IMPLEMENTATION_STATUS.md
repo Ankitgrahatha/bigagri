@@ -1,6 +1,6 @@
 # RewardLoop Implementation Status
 
-Last reviewed: 2026-10-21
+Last reviewed: 2026-10-22
 Status: **MVP foundation exists; production launch is not yet approved.**
 
 ## Current deployed components
@@ -10,6 +10,35 @@ Status: **MVP foundation exists; production launch is not yet approved.**
 - Admin settings console: https://bigagri.vercel.app/admin-settings.html
 - GitHub source: https://github.com/Ankitgrahatha/bigagri
 - Supabase project ref: `guhhuqxrobhuumwrypnc`
+
+## Verified engineering progress since the prior review
+
+The following changes are merged in Git and covered by successful GitHub Actions runs on `main`. They are **not all deployed to the connected production Supabase project**.
+
+- Claim idempotency and actor-scoped replay tests.
+- Parallel PostgreSQL claim and redemption contention tests, including one-credit, one-reservation, balance serialization, and stock/accounting assertions.
+- Points ledger immutability: update, delete and truncate are rejected in the disposable database.
+- Least-privilege grants on reward-bearing tables and internal RPC execution.
+- Public catalog opt-in by tenant, with private tenant records hidden from both `anon` and `authenticated` roles in isolated tests.
+- Default privileges tightened for future objects and tested by creating new tables, sequences, and functions.
+- Schema-only local baseline, timestamp markers, safe local seed, and clean PostgreSQL rebuild workflow.
+- Redemption refund enum fix: cancellation/rejection compensation uses the existing `redeem_release` enum value; the isolated behavior test proves refund/stock restoration occurs once and fulfillment does not refund.
+- The deployed admin settings function is now tracked in Git with tests for caller authentication, tenant admin authorization, field allowlisting and SMTP password non-persistence.
+- Six legacy Edge Function sources are archived outside the canonical deployment folder; none has been disabled.
+
+Current CI evidence on main:
+- Latest legacy-route guard and quality gate passed on commit `d8e8342f3dabfb8737b7ef1db07081d033a95b6a`.
+- The prior main run also passed isolated database regression and smoke tests on `a42ab0844dbf6ce27ae36620d09b32a72a04f0c0`.
+- These results prove the tested repository/CI path only, not that pending SQL has been applied to production.
+
+## Production blockers still open
+
+1. **Production migration history is not yet reconciled.** Do not run the schema baseline against the live database. Compare live schema to the baseline, confirm the remote migration versions, then perform the documented history-only repair and review a linked dry-run before any production push.
+2. **Refund fix and subsequent security migrations are pending deployment.** They are in Git and passed isolated tests; the live function/database still needs controlled release verification.
+3. **Auth email delivery and leaked-password protection** remain unverified/disabled as noted below.
+4. **Legacy Edge Functions remain active.** The latest 24-hour function-log query showed traffic to `rewardloop-api` but no logged requests to the six legacy routes. That is only a 24-hour observation window—not sufficient evidence to retire routes. Keep them active until client references and a longer observation window are checked.
+5. **No browser-level end-to-end run** has yet proved signup → confirmation → profile → claim → balance → redemption → cancellation/fulfillment on the deployed production stack.
+6. **Vercel deployment quota previously blocked new production deploys.** Verify current project/deployment status before claiming the latest Git commit is live.
 
 ## Implemented in repository / database
 

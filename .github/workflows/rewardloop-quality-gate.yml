@@ -46,7 +46,7 @@ jobs:
 
       - name: Run RewardLoop contract and replay regression tests
         run: |
-          node --test supabase/tests/rewardloop_client_api_contract.test.mjs supabase/tests/rewardloop_claim_replay_security.test.mjs supabase/tests/rewardloop_claim_replay_resource_security.test.mjs supabase/tests/rewardloop_redemption_replay_security.test.mjs supabase/tests/rewardloop_redemption_resolution_security.test.mjs supabase/tests/rewardloop_auth_recovery_contract.test.mjs supabase/tests/rewardloop_admin_dashboard_metrics.test.mjs supabase/tests/rewardloop_campaign_budget_security.test.mjs
+          node --test supabase/tests/rewardloop_client_api_contract.test.mjs supabase/tests/rewardloop_claim_replay_security.test.mjs supabase/tests/rewardloop_claim_replay_resource_security.test.mjs supabase/tests/rewardloop_redemption_replay_security.test.mjs supabase/tests/rewardloop_redemption_resolution_security.test.mjs supabase/tests/rewardloop_admin_settings_security.test.mjs supabase/tests/rewardloop_auth_recovery_contract.test.mjs supabase/tests/rewardloop_admin_dashboard_metrics.test.mjs supabase/tests/rewardloop_campaign_budget_security.test.mjs
 
       - name: Validate read-only boundary smoke script
         run: |

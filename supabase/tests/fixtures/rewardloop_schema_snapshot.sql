@@ -230,189 +230,189 @@ CREATE TABLE public.tenants (
   updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
-ALTER TABLE public.audit_logs ADD CONSTRAINT audit_logs_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
-
 ALTER TABLE public.audit_logs ADD CONSTRAINT audit_logs_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.audit_logs ADD CONSTRAINT audit_logs_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_budget_minor_units_check CHECK ((budget_minor_units >= 0));
-
-ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_check CHECK (((ends_at IS NULL) OR (starts_at IS NULL) OR (ends_at > starts_at)));
-
-ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-
 ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_rules_version_check CHECK ((rules_version > 0));
-
-ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.claims ADD CONSTRAINT claims_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.claims ADD CONSTRAINT claims_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE RESTRICT;
-
 ALTER TABLE public.claims ADD CONSTRAINT claims_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.claims ADD CONSTRAINT claims_points_awarded_check CHECK ((points_awarded >= 0));
-
-ALTER TABLE public.claims ADD CONSTRAINT claims_qr_code_id_fkey FOREIGN KEY (qr_code_id) REFERENCES qr_codes(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.claims ADD CONSTRAINT claims_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-
-ALTER TABLE public.claims ADD CONSTRAINT claims_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.claims ADD CONSTRAINT claims_tenant_id_idempotency_key_key UNIQUE (tenant_id, idempotency_key);
-
-ALTER TABLE public.partners ADD CONSTRAINT partners_display_name_check CHECK (((length(TRIM(BOTH FROM display_name)) >= 1) AND (length(TRIM(BOTH FROM display_name)) <= 160)));
-
 ALTER TABLE public.partners ADD CONSTRAINT partners_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.partners ADD CONSTRAINT partners_role_check CHECK ((role = ANY (ARRAY['farmer'::partner_role, 'retailer'::partner_role, 'distributor'::partner_role])));
-
-ALTER TABLE public.partners ADD CONSTRAINT partners_tenant_id_external_ref_key UNIQUE (tenant_id, external_ref);
-
-ALTER TABLE public.partners ADD CONSTRAINT partners_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.partners ADD CONSTRAINT partners_tenant_id_user_id_key UNIQUE (tenant_id, user_id);
-
-ALTER TABLE public.partners ADD CONSTRAINT partners_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.partners ADD CONSTRAINT partners_verification_status_check CHECK ((verification_status = ANY (ARRAY['unverified'::text, 'pending'::text, 'verified'::text, 'rejected'::text, 'suspended'::text])));
-
-ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
-
-ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_claim_id_fkey FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE RESTRICT;
-
 ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_points_delta_check CHECK ((points_delta <> 0));
-
-ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_tenant_id_idempotency_key_key UNIQUE (tenant_id, idempotency_key);
-
 ALTER TABLE public.production_batches ADD CONSTRAINT production_batches_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.production_batches ADD CONSTRAINT production_batches_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.production_batches ADD CONSTRAINT production_batches_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'active'::text, 'suspended'::text, 'recalled'::text, 'closed'::text])));
-
-ALTER TABLE public.production_batches ADD CONSTRAINT production_batches_tenant_id_batch_code_key UNIQUE (tenant_id, batch_code);
-
-ALTER TABLE public.production_batches ADD CONSTRAINT production_batches_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
 ALTER TABLE public.products ADD CONSTRAINT products_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.products ADD CONSTRAINT products_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.products ADD CONSTRAINT products_tenant_id_sku_key UNIQUE (tenant_id, sku);
-
-ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES production_batches(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_check CHECK (((expires_at IS NULL) OR (expires_at > issued_at)));
-
-ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_entitlement_role_check CHECK ((entitlement_role = ANY (ARRAY['farmer'::partner_role, 'retailer'::partner_role, 'distributor'::partner_role])));
-
-ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_issuance_batch_id_fkey FOREIGN KEY (issuance_batch_id) REFERENCES qr_issuance_batches(id) ON DELETE RESTRICT;
-
 ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_points_value_check CHECK ((points_value >= 0));
-
-ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_tenant_id_token_hash_key UNIQUE (tenant_id, token_hash);
-
-ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_entitlement_role_check CHECK ((entitlement_role = ANY (ARRAY['farmer'::partner_role, 'retailer'::partner_role, 'distributor'::partner_role])));
-
 ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_points_value_check CHECK (((points_value >= 1) AND (points_value <= 1000000)));
-
-ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_requested_count_check CHECK (((requested_count >= 1) AND (requested_count <= 1000)));
-
-ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_status_check CHECK ((status = ANY (ARRAY['creating'::text, 'issued'::text, 'failed'::text, 'revoked'::text])));
-
-ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE RESTRICT;
-
 ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_points_cost_check CHECK ((points_cost > 0));
-
-ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_reward_id_fkey FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_status_check CHECK ((status = ANY (ARRAY['reserved'::text, 'approved'::text, 'fulfilled'::text, 'cancelled'::text, 'rejected'::text])));
-
-ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_tenant_id_request_key_key UNIQUE (tenant_id, request_key);
-
-ALTER TABLE public.rewardloop_admin_settings ADD CONSTRAINT rewardloop_admin_settings_email_provider_check CHECK ((email_provider = ANY (ARRAY['gmail'::text, 'resend'::text, 'custom'::text])));
-
 ALTER TABLE public.rewardloop_admin_settings ADD CONSTRAINT rewardloop_admin_settings_pkey PRIMARY KEY (tenant_id);
-
-ALTER TABLE public.rewardloop_admin_settings ADD CONSTRAINT rewardloop_admin_settings_smtp_port_check CHECK (((smtp_port >= 1) AND (smtp_port <= 65535)));
-
-ALTER TABLE public.rewardloop_admin_settings ADD CONSTRAINT rewardloop_admin_settings_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
-
-ALTER TABLE public.rewards ADD CONSTRAINT rewards_name_check CHECK (((length(TRIM(BOTH FROM name)) >= 2) AND (length(TRIM(BOTH FROM name)) <= 160)));
-
 ALTER TABLE public.rewards ADD CONSTRAINT rewards_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.rewards ADD CONSTRAINT rewards_points_cost_check CHECK (((points_cost >= 1) AND (points_cost <= 100000000)));
-
-ALTER TABLE public.rewards ADD CONSTRAINT rewards_stock_quantity_check CHECK (((stock_quantity IS NULL) OR (stock_quantity >= 0)));
-
-ALTER TABLE public.rewards ADD CONSTRAINT rewards_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.rewards ADD CONSTRAINT rewards_tenant_id_slug_key UNIQUE (tenant_id, slug);
-
-ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
-
-ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_outcome_check CHECK ((outcome = ANY (ARRAY['detected'::text, 'accepted'::text, 'duplicate'::text, 'invalid'::text, 'revoked'::text, 'expired'::text, 'ineligible'::text, 'rate_limited'::text, 'error'::text, 'review'::text])));
-
 ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_qr_code_id_fkey FOREIGN KEY (qr_code_id) REFERENCES qr_codes(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
-ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_tenant_id_request_id_key UNIQUE (tenant_id, request_id);
-
 ALTER TABLE public.tenant_memberships ADD CONSTRAINT tenant_memberships_pkey PRIMARY KEY (id);
-
-ALTER TABLE public.tenant_memberships ADD CONSTRAINT tenant_memberships_status_check CHECK ((status = ANY (ARRAY['invited'::text, 'active'::text, 'suspended'::text, 'removed'::text])));
-
-ALTER TABLE public.tenant_memberships ADD CONSTRAINT tenant_memberships_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
-
+ALTER TABLE public.tenants ADD CONSTRAINT tenants_pkey PRIMARY KEY (id);
+ALTER TABLE public.claims ADD CONSTRAINT claims_tenant_id_idempotency_key_key UNIQUE (tenant_id, idempotency_key);
+ALTER TABLE public.partners ADD CONSTRAINT partners_tenant_id_external_ref_key UNIQUE (tenant_id, external_ref);
+ALTER TABLE public.partners ADD CONSTRAINT partners_tenant_id_user_id_key UNIQUE (tenant_id, user_id);
+ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_tenant_id_idempotency_key_key UNIQUE (tenant_id, idempotency_key);
+ALTER TABLE public.production_batches ADD CONSTRAINT production_batches_tenant_id_batch_code_key UNIQUE (tenant_id, batch_code);
+ALTER TABLE public.products ADD CONSTRAINT products_tenant_id_sku_key UNIQUE (tenant_id, sku);
+ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_tenant_id_token_hash_key UNIQUE (tenant_id, token_hash);
+ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_tenant_id_request_key_key UNIQUE (tenant_id, request_key);
+ALTER TABLE public.rewards ADD CONSTRAINT rewards_tenant_id_slug_key UNIQUE (tenant_id, slug);
+ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_tenant_id_request_id_key UNIQUE (tenant_id, request_id);
 ALTER TABLE public.tenant_memberships ADD CONSTRAINT tenant_memberships_tenant_id_user_id_role_key UNIQUE (tenant_id, user_id, role);
-
+ALTER TABLE public.tenants ADD CONSTRAINT tenants_slug_key UNIQUE (slug);
+ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_budget_minor_units_check CHECK ((budget_minor_units >= 0));
+ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_check CHECK (((ends_at IS NULL) OR (starts_at IS NULL) OR (ends_at > starts_at)));
+ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_rules_version_check CHECK ((rules_version > 0));
+ALTER TABLE public.claims ADD CONSTRAINT claims_points_awarded_check CHECK ((points_awarded >= 0));
+ALTER TABLE public.partners ADD CONSTRAINT partners_display_name_check CHECK (((length(TRIM(BOTH FROM display_name)) >= 1) AND (length(TRIM(BOTH FROM display_name)) <= 160)));
+ALTER TABLE public.partners ADD CONSTRAINT partners_role_check CHECK ((role = ANY (ARRAY['farmer'::partner_role, 'retailer'::partner_role, 'distributor'::partner_role])));
+ALTER TABLE public.partners ADD CONSTRAINT partners_verification_status_check CHECK ((verification_status = ANY (ARRAY['unverified'::text, 'pending'::text, 'verified'::text, 'rejected'::text, 'suspended'::text])));
+ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_points_delta_check CHECK ((points_delta <> 0));
+ALTER TABLE public.production_batches ADD CONSTRAINT production_batches_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'active'::text, 'suspended'::text, 'recalled'::text, 'closed'::text])));
+ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_check CHECK (((expires_at IS NULL) OR (expires_at > issued_at)));
+ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_entitlement_role_check CHECK ((entitlement_role = ANY (ARRAY['farmer'::partner_role, 'retailer'::partner_role, 'distributor'::partner_role])));
+ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_points_value_check CHECK ((points_value >= 0));
+ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_entitlement_role_check CHECK ((entitlement_role = ANY (ARRAY['farmer'::partner_role, 'retailer'::partner_role, 'distributor'::partner_role])));
+ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_points_value_check CHECK (((points_value >= 1) AND (points_value <= 1000000)));
+ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_requested_count_check CHECK (((requested_count >= 1) AND (requested_count <= 1000)));
+ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_status_check CHECK ((status = ANY (ARRAY['creating'::text, 'issued'::text, 'failed'::text, 'revoked'::text])));
+ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_points_cost_check CHECK ((points_cost > 0));
+ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_status_check CHECK ((status = ANY (ARRAY['reserved'::text, 'approved'::text, 'fulfilled'::text, 'cancelled'::text, 'rejected'::text])));
+ALTER TABLE public.rewardloop_admin_settings ADD CONSTRAINT rewardloop_admin_settings_email_provider_check CHECK ((email_provider = ANY (ARRAY['gmail'::text, 'resend'::text, 'custom'::text])));
+ALTER TABLE public.rewardloop_admin_settings ADD CONSTRAINT rewardloop_admin_settings_smtp_port_check CHECK (((smtp_port >= 1) AND (smtp_port <= 65535)));
+ALTER TABLE public.rewards ADD CONSTRAINT rewards_name_check CHECK (((length(TRIM(BOTH FROM name)) >= 2) AND (length(TRIM(BOTH FROM name)) <= 160)));
+ALTER TABLE public.rewards ADD CONSTRAINT rewards_points_cost_check CHECK (((points_cost >= 1) AND (points_cost <= 100000000)));
+ALTER TABLE public.rewards ADD CONSTRAINT rewards_stock_quantity_check CHECK (((stock_quantity IS NULL) OR (stock_quantity >= 0)));
+ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_outcome_check CHECK ((outcome = ANY (ARRAY['detected'::text, 'accepted'::text, 'duplicate'::text, 'invalid'::text, 'revoked'::text, 'expired'::text, 'ineligible'::text, 'rate_limited'::text, 'error'::text, 'review'::text])));
+ALTER TABLE public.tenant_memberships ADD CONSTRAINT tenant_memberships_status_check CHECK ((status = ANY (ARRAY['invited'::text, 'active'::text, 'suspended'::text, 'removed'::text])));
+ALTER TABLE public.tenants ADD CONSTRAINT tenants_name_check CHECK (((length(TRIM(BOTH FROM name)) >= 2) AND (length(TRIM(BOTH FROM name)) <= 160)));
+ALTER TABLE public.tenants ADD CONSTRAINT tenants_slug_check CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{1,62}$'::text));
+ALTER TABLE public.tenants ADD CONSTRAINT tenants_status_check CHECK ((status = ANY (ARRAY['active'::text, 'suspended'::text, 'closed'::text])));
+ALTER TABLE public.audit_logs ADD CONSTRAINT audit_logs_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.audit_logs ADD CONSTRAINT audit_logs_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.campaigns ADD CONSTRAINT campaigns_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.claims ADD CONSTRAINT claims_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE RESTRICT;
+ALTER TABLE public.claims ADD CONSTRAINT claims_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE RESTRICT;
+ALTER TABLE public.claims ADD CONSTRAINT claims_qr_code_id_fkey FOREIGN KEY (qr_code_id) REFERENCES qr_codes(id) ON DELETE RESTRICT;
+ALTER TABLE public.claims ADD CONSTRAINT claims_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.claims ADD CONSTRAINT claims_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.partners ADD CONSTRAINT partners_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.partners ADD CONSTRAINT partners_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE RESTRICT;
+ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_claim_id_fkey FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE RESTRICT;
+ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE RESTRICT;
+ALTER TABLE public.points_ledger ADD CONSTRAINT points_ledger_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.production_batches ADD CONSTRAINT production_batches_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
+ALTER TABLE public.production_batches ADD CONSTRAINT production_batches_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.products ADD CONSTRAINT products_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES production_batches(id) ON DELETE RESTRICT;
+ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE RESTRICT;
+ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_issuance_batch_id_fkey FOREIGN KEY (issuance_batch_id) REFERENCES qr_issuance_batches(id) ON DELETE RESTRICT;
+ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
+ALTER TABLE public.qr_codes ADD CONSTRAINT qr_codes_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE RESTRICT;
+ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE RESTRICT;
+ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
+ALTER TABLE public.qr_issuance_batches ADD CONSTRAINT qr_issuance_batches_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE RESTRICT;
+ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_reward_id_fkey FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE RESTRICT;
+ALTER TABLE public.redemptions ADD CONSTRAINT redemptions_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.rewardloop_admin_settings ADD CONSTRAINT rewardloop_admin_settings_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE public.rewards ADD CONSTRAINT rewards_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_qr_code_id_fkey FOREIGN KEY (qr_code_id) REFERENCES qr_codes(id) ON DELETE RESTRICT;
+ALTER TABLE public.scan_events ADD CONSTRAINT scan_events_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+ALTER TABLE public.tenant_memberships ADD CONSTRAINT tenant_memberships_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
 ALTER TABLE public.tenant_memberships ADD CONSTRAINT tenant_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE RESTRICT;
 
-ALTER TABLE public.tenants ADD CONSTRAINT tenants_name_check CHECK (((length(TRIM(BOTH FROM name)) >= 2) AND (length(TRIM(BOTH FROM name)) <= 160)));
 
-ALTER TABLE public.tenants ADD CONSTRAINT tenants_pkey PRIMARY KEY (id);
 
-ALTER TABLE public.tenants ADD CONSTRAINT tenants_slug_check CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{1,62}$'::text));
 
-ALTER TABLE public.tenants ADD CONSTRAINT tenants_slug_key UNIQUE (slug);
 
-ALTER TABLE public.tenants ADD CONSTRAINT tenants_status_check CHECK ((status = ANY (ARRAY['active'::text, 'suspended'::text, 'closed'::text])));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 CREATE INDEX audit_logs_actor_user_idx ON public.audit_logs USING btree (actor_user_id);
 

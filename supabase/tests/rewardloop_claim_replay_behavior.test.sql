@@ -104,6 +104,31 @@ BEGIN
     RAISE EXCEPTION 'already-claimed QR did not fail safely: %', v_other_actor_new_request;
   END IF;
 
+  -- Posted ledger rows must never be updated, deleted, or truncated.
+  BEGIN
+    UPDATE public.points_ledger
+       SET points_delta = 0
+     WHERE tenant_id = v_tenant_id;
+    RAISE EXCEPTION 'ledger UPDATE unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '55000' THEN
+    NULL;
+  END;
+
+  BEGIN
+    DELETE FROM public.points_ledger
+     WHERE tenant_id = v_tenant_id;
+    RAISE EXCEPTION 'ledger DELETE unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '55000' THEN
+    NULL;
+  END;
+
+  BEGIN
+    TRUNCATE TABLE public.points_ledger;
+    RAISE EXCEPTION 'ledger TRUNCATE unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '55000' THEN
+    NULL;
+  END;
+
   SELECT count(*), COALESCE(sum(points_delta), 0)
     INTO v_ledger_count, v_ledger_points
     FROM public.points_ledger

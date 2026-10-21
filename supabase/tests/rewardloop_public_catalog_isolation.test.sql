@@ -17,9 +17,9 @@ INSERT INTO public.campaigns(
 )
 VALUES
   ('00000000-0000-4000-8000-000000009005', '00000000-0000-4000-8000-000000009001',
-   'Public Test Campaign', 'active', now() - interval '1 hour', now() + interval '1 day', 1000, 'INR', 1, '{}'::jsonb),
+   'Public Test Campaign', 'active', now() - interval '1 hour', now() + interval '1 day', 0, 'INR', 1, '{}'::jsonb),
   ('00000000-0000-4000-8000-000000009006', '00000000-0000-4000-8000-000000009002',
-   'Private Test Campaign', 'active', now() - interval '1 hour', now() + interval '1 day', 1000, 'INR', 1, '{}'::jsonb);
+   'Private Test Campaign', 'active', now() - interval '1 hour', now() + interval '1 day', 0, 'INR', 1, '{}'::jsonb);
 
 INSERT INTO public.rewards(
   id, tenant_id, slug, name, category, points_cost, stock_quantity, active, is_demo, sort_order, metadata

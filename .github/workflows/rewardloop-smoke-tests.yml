@@ -7,6 +7,8 @@ on:
     paths:
       - "supabase/tests/rewardloop_cors_smoke_test.sh"
       - "supabase/tests/rewardloop_client_api_contract.test.mjs"
+      - "supabase/tests/rewardloop_claim_replay_security.test.mjs"
+      - "supabase/migrations/**"
       - "supabase/functions/rewardloop-api/**"
       - "app.js"
       - "admin.js"
@@ -18,6 +20,8 @@ on:
     paths:
       - "supabase/tests/rewardloop_cors_smoke_test.sh"
       - "supabase/tests/rewardloop_client_api_contract.test.mjs"
+      - "supabase/tests/rewardloop_claim_replay_security.test.mjs"
+      - "supabase/migrations/**"
       - "supabase/functions/rewardloop-api/**"
       - "app.js"
       - "admin.js"
@@ -38,6 +42,6 @@ jobs:
       - name: Validate smoke-test shell syntax
         run: bash -n supabase/tests/rewardloop_cors_smoke_test.sh
       - name: Check client/API contract
-        run: node --test supabase/tests/rewardloop_client_api_contract.test.mjs
+        run: node --test supabase/tests/rewardloop_client_api_contract.test.mjs supabase/tests/rewardloop_claim_replay_security.test.mjs
       - name: Run read-only production boundary checks
         run: bash supabase/tests/rewardloop_cors_smoke_test.sh

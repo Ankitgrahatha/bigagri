@@ -31,3 +31,11 @@ Only grant `super_admin` to the accountable system owner. Give other operators t
 - Create and approve a production campaign and replace the demo catalogue before issuing live QR tokens.
 - QR token CSVs contain claim secrets. Transfer them securely to the approved print/packaging workflow and do not commit them to GitHub.
 - Admin API calls require a valid Supabase session and active `brand_admin` or `super_admin` tenant membership. Privileged database functions also check membership before changing partner status or issuing/revoking codes.
+
+
+## Redemption operations
+
+The admin console lists redemption requests with partner and reward names. For requests in `reserved` or `approved` state:
+- **Mark fulfilled** records fulfilment without refunding spent points.
+- **Cancel & refund** requires a reason, changes the status to cancelled, refunds the points through the ledger, restores finite reward stock, and records an audit event.
+- Resolution is transactional and row-locked; resolved requests cannot be processed a second time.

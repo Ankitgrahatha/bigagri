@@ -1,0 +1,42 @@
+# RewardLoop Admin Setup
+
+## First administrator bootstrap
+
+The Supabase project currently has no Auth users and no tenant memberships. The admin console is intentionally closed until an owner account is created and explicitly granted a role.
+
+1. Open the deployed farmer app and create an account with the owner/operator email you control.
+2. Complete email verification if Supabase requests it.
+3. In Supabase SQL Editor for project `guhhuqxrobhuumwrypnc`, locate that exact account by email and copy its UUID:
+   ```sql
+   select id, email from auth.users where lower(email) = lower('YOUR_OWNER_EMAIL');
+   ```
+4. Grant the minimum required tenant role. Replace the UUID with the exact ID returned above:
+   ```sql
+   insert into public.tenant_memberships (tenant_id, user_id, role, status)
+   select t.id, 'YOUR_AUTH_USER_UUID'::uuid, 'super_admin', 'active'
+   from public.tenants t
+   where t.slug = 'growta-rewardloop' and t.status = 'active'
+   on conflict (tenant_id, user_id) do update
+   set role = 'super_admin', status = 'active';
+   ```
+   If the database reports that no unique constraint matches the conflict target, use a guarded insert instead:
+   ```sql
+   insert into public.tenant_memberships (tenant_id, user_id, role, status)
+   select t.id, 'YOUR_AUTH_USER_UUID'::uuid, 'super_admin', 'active'
+   from public.tenants t
+   where t.slug = 'growta-rewardloop' and t.status = 'active'
+     and not exists (
+       select 1 from public.tenant_memberships m
+       where m.tenant_id = t.id and m.user_id = 'YOUR_AUTH_USER_UUID'::uuid
+     );
+   ```
+5. Open `/admin.html` on the deployed domain and sign in with that account.
+
+Only grant `super_admin` to the accountable system owner. Give other operators the narrower `brand_admin` role where possible. Never publish this SQL with a real user's email/UUID or grant admin membership based on unverified self-reported details.
+
+## Release gates
+
+- The demo campaign is paused intentionally. Do not activate it for real claims.
+- Create and approve a production campaign and replace the demo catalogue before issuing live QR tokens.
+- QR token CSVs contain claim secrets. Transfer them securely to the approved print/packaging workflow and do not commit them to GitHub.
+- Admin API calls require a valid Supabase session and active `brand_admin` or `super_admin` tenant membership. Privileged database functions also check membership before changing partner status or issuing/revoking codes.

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#173d2b">
+  <title>Growta RewardLoop · Admin Settings</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .admin-wrap{max-width:980px;margin:32px auto;padding:0 18px}.admin-head{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}.admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:22px}.admin-card{background:var(--panel,#fff);border:1px solid var(--border,#dfe7e0);border-radius:16px;padding:22px}.admin-card h2{margin-top:0}.admin-card label{display:block;font-weight:600;margin:12px 0 6px}.admin-card input,.admin-card select,.admin-card textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #cbd5ce;border-radius:9px;font:inherit}.admin-card textarea{min-height:100px}.admin-note{font-size:.9rem;color:#647067;line-height:1.5}.admin-status{padding:12px;border-radius:10px;margin-top:12px;background:#f2f5f2}.admin-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.admin-actions button{cursor:pointer}.danger-note{color:#8b4513}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar"><a class="brand" href="/" aria-label="Growta RewardLoop home"><span class="brand-mark">G</span><span><b>growta</b><small>REWARDLOOP · ADMIN</small></span></a><div class="top-actions"><a class="ghost-button" href="/">Customer app</a></div></header>
+    <main class="admin-wrap">
+      <div class="admin-head"><div><div class="eyebrow">ADMINISTRATION</div><h1>Platform settings</h1><p class="muted">Manage email delivery, authentication and customer-facing email copy.</p></div><button id="signout" class="secondary-button" type="button">Sign out</button></div>
+      <div id="status" class="admin-status" role="status">Checking your admin access…</div>
+      <div id="console" class="admin-grid" hidden>
+        <section class="admin-card"><h2>Email delivery</h2><p class="admin-note">Configure SMTP securely. Credentials are write-only and must never be displayed after saving.</p>
+          <label for="provider">Provider</label><select id="provider"><option value="gmail">Gmail SMTP</option><option value="resend">Resend SMTP</option><option value="custom">Other SMTP</option></select>
+          <label for="sender">Sender email</label><input id="sender" type="email" autocomplete="off" placeholder="no-reply@yourdomain.com">
+          <label for="senderName">Sender name</label><input id="senderName" maxlength="120" placeholder="Growta RewardLoop">
+          <label for="host">SMTP host</label><input id="host" autocomplete="off" placeholder="smtp.gmail.com">
+          <label for="port">SMTP port</label><input id="port" type="number" min="1" max="65535" value="587">
+          <label for="username">SMTP username</label><input id="username" autocomplete="off">
+          <label for="password">SMTP password / app password</label><input id="password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current credential">
+          <p class="admin-note danger-note">The live Supabase Auth SMTP configuration is separate from saved UI preferences. This form will only apply changes when the secure server integration is configured.</p>
+          <div class="admin-actions"><button id="saveEmail" class="primary-button" type="button">Save email settings</button><button id="testEmail" class="secondary-button" type="button">Send test email</button></div>
+        </section>
+        <section class="admin-card"><h2>Authentication</h2><p class="admin-note">Security-first controls for account creation and confirmation.</p>
+          <label for="siteUrl">Application site URL</label><input id="siteUrl" type="url" placeholder="https://bigagri.vercel.app">
+          <label for="redirects">Allowed redirect URLs (one per line)</label><textarea id="redirects" placeholder="https://bigagri.vercel.app/**"></textarea>
+          <label><input id="signupEnabled" type="checkbox" checked style="width:auto"> Allow new signups</label>
+          <label><input id="emailConfirm" type="checkbox" checked style="width:auto"> Require email confirmation</label>
+          <p class="admin-note">Email confirmation stays enabled by default. Never add wildcard redirect domains you do not control.</p>
+          <div class="admin-actions"><button id="saveAuth" class="primary-button" type="button">Save authentication settings</button></div>
+        </section>
+        <section class="admin-card"><h2>Email templates</h2><p class="admin-note">Edit copy used by the application. Supabase Auth's own templates require the privileged Auth configuration integration to publish.</p>
+          <label for="confirmSubject">Confirmation email subject</label><input id="confirmSubject" maxlength="180" value="Confirm your Growta RewardLoop account">
+          <label for="confirmBody">Confirmation message</label><textarea id="confirmBody">Welcome to Growta RewardLoop. Confirm your email address to activate your account.</textarea>
+          <label for="recoverySubject">Password recovery subject</label><input id="recoverySubject" maxlength="180" value="Reset your Growta RewardLoop password">
+          <label for="recoveryBody">Password recovery message</label><textarea id="recoveryBody">We received a request to reset your password. Follow the secure link to continue.</textarea>
+          <div class="admin-actions"><button id="saveTemplates" class="primary-button" type="button">Save template preferences</button></div>
+        </section>
+        <section class="admin-card"><h2>Configuration status</h2><div id="configSummary" class="admin-note">Loading configuration status…</div><div class="admin-actions"><button id="refresh" class="secondary-button" type="button">Refresh status</button></div><p class="admin-note">No secret values will be shown here. Admin changes should be audited server-side.</p></section>
+      </div>
+    </main>
+    <footer class="footer"><span>© <span id="year"></span> Growta RewardLoop</span><span>Restricted admin area</span></footer>
+  </div>
+  <script type="module" src="/admin-settings.js"></script>
+</body>
+</html>

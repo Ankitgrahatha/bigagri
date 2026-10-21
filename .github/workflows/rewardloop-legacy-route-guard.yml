@@ -1,0 +1,42 @@
+name: RewardLoop legacy route guard
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  legacy-route-call-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Reject new browser calls to legacy RewardLoop routes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # These endpoints remain deployed for backward compatibility, but new
+          # browser callers must use rewardloop-api after contract parity review.
+          # Search application source only; exclude documentation, tests, and the
+          # legacy function implementations themselves.
+          if grep -RInE \
+            --include='*.js' --include='*.ts' --include='*.tsx' --include='*.jsx' \
+            --exclude-dir=node_modules --exclude-dir=.git \
+            --exclude-dir=tests --exclude-dir=__tests__ \
+            --exclude-dir=docs --exclude-dir=claim-qr \
+            --exclude-dir=onboard-farmer --exclude-dir=issue-qr-batch \
+            --exclude-dir=revoke-qr-batch --exclude-dir=redeem-reward \
+            --exclude-dir=verify-partner \
+            '(functions\\.invoke|functions/v1)/?(claim-qr|onboard-farmer|issue-qr-batch|revoke-qr-batch|redeem-reward|verify-partner)' \
+            .; then
+            echo "::error::Direct client call to a legacy RewardLoop route detected."
+            echo "Use the canonical rewardloop-api after verifying action/response parity."
+            exit 1
+          fi
+
+          echo "No direct legacy-route calls found in application source.";

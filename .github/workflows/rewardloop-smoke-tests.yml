@@ -6,6 +6,11 @@ on:
     branches: [main]
     paths:
       - "supabase/tests/rewardloop_cors_smoke_test.sh"
+      - "supabase/functions/rewardloop-api/**"
+      - "app.js"
+      - "admin.js"
+      - "admin-settings.js"
+      - "docs/REPOSITORY_OF_RECORD.md"
       - ".github/workflows/rewardloop-smoke-tests.yml"
 
 permissions:

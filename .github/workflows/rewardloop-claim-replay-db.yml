@@ -86,5 +86,11 @@ jobs:
       - name: Apply actor-scoped replay migration to the disposable database
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021170000_scope_claim_replay_to_actor.sql
 
+      - name: Apply actor-scoped redemption replay migration to the disposable database
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021182000_scope_redemption_replay_to_actor.sql
+
       - name: Run transactional claim replay regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_claim_replay_behavior.test.sql
+
+      - name: Run transactional redemption replay regression test
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_redemption_replay_behavior.test.sql

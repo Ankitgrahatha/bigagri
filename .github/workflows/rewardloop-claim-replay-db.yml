@@ -98,6 +98,9 @@ jobs:
       - name: Apply append-only ledger trigger to the disposable database
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021191000_enforce_points_ledger_append_only.sql
 
+      - name: Apply tenant-scoped public catalog migration to disposable database
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021192000_scope_public_catalog_by_tenant.sql
+
       - name: Run transactional claim replay regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_claim_replay_behavior.test.sql
 
@@ -106,6 +109,9 @@ jobs:
 
       - name: Run client-role privilege regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_privilege_hardening.test.sql
+
+      - name: Run public catalog tenant-isolation regression test
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_public_catalog_isolation.test.sql
 
       - name: Seed concurrency-only data in disposable database
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_concurrency_fixtures.sql

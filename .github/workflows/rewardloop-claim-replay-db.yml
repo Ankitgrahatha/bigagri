@@ -115,6 +115,9 @@ jobs:
       - name: Run client-role privilege regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_privilege_hardening.test.sql
 
+      - name: Run future-object default-privilege regression test
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_default_privileges.test.sql
+
       - name: Run public catalog tenant-isolation regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_public_catalog_isolation.test.sql
 

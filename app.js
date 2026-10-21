@@ -138,28 +138,63 @@ function render() {
   else if (!state.profile) renderProfileSetup();
   else renderDashboard();
 }
+function authSubmitLabel() {
+  return ({ signin:t("login"), signup:t("createAccount"), recover:t("sendReset"), reset:t("saveNewPassword") })[state.authMode] || t("login");
+}
 function renderAuth() {
   const signup = state.authMode === "signup";
+  const recovering = state.authMode === "recover";
+  const resetting = state.authMode === "reset";
+  const title = resetting ? t("resetTitle") : recovering ? t("recoverTitle") : signup ? t("signUp") : t("signIn");
+  const subtitle = resetting ? t("resetCopy") : recovering ? t("recoverCopy") : signup ? t("profileSub") : t("welcome");
   app.innerHTML = `
     <section class="auth-layout">
       <div class="auth-intro">
-        <div class="eyebrow">${t("eyebrow")}</div><h1>${t("authTitle")}</h1><p>${t("authCopy")}</p>
+        <div class="eyebrow">${t("eyebrow")}</div><h1>${resetting ? t("resetTitle") : t("authTitle")}</h1><p>${resetting ? t("resetCopy") : t("authCopy")}</p>
         <div class="benefit-list"><div class="benefit"><span class="benefit-icon">✓</span><span>${t("benefit1")}</span></div><div class="benefit"><span class="benefit-icon">✓</span><span>${t("benefit2")}</span></div><div class="benefit"><span class="benefit-icon">✓</span><span>${t("benefit3")}</span></div></div>
       </div>
-      <section class="panel auth-panel"><h2>${signup ? t("signUp") : t("signIn")}</h2><p class="muted small">${signup ? t("profileSub") : t("welcome")}</p>
-        <div class="tabs"><button class="tab ${!signup ? "active" : ""}" data-mode="signin" type="button">${t("signIn")}</button><button class="tab ${signup ? "active" : ""}" data-mode="signup" type="button">${t("signUp")}</button></div>
+      <section class="panel auth-panel"><h2>${title}</h2><p class="muted small">${subtitle}</p>
+        ${(!recovering && !resetting) ? `<div class="tabs"><button class="tab ${!signup ? "active" : ""}" data-mode="signin" type="button">${t("signIn")}</button><button class="tab ${signup ? "active" : ""}" data-mode="signup" type="button">${t("signUp")}</button></div>` : ""}
         <form id="auth-form" class="form-stack">
           ${signup ? `<div class="field"><label for="auth-name">${t("name")}</label><input id="auth-name" name="name" autocomplete="name" required minlength="2" maxlength="160"></div>` : ""}
-          <div class="field"><label for="auth-email">${t("email")}</label><input id="auth-email" name="email" type="email" autocomplete="email" required></div>
-          <div class="field"><label for="auth-password">${t("password")}</label><input id="auth-password" name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="8" required></div>
+          ${!resetting ? `<div class="field"><label for="auth-email">${t("email")}</label><input id="auth-email" name="email" type="email" autocomplete="email" required></div>` : ""}
+          ${!recovering ? `<div class="field"><label for="auth-password">${t("password")}</label><input id="auth-password" name="password" type="password" autocomplete="${resetting || signup ? "new-password" : "current-password"}" minlength="8" required></div>` : ""}
+          ${resetting ? `<div class="field"><label for="auth-password-confirm">${t("saveNewPassword")}</label><input id="auth-password-confirm" name="password_confirm" type="password" autocomplete="new-password" minlength="8" required></div>` : ""}
           ${signup ? `<div class="field"><label for="auth-phone">${t("phone")}</label><input id="auth-phone" name="phone" type="tel" autocomplete="tel" placeholder="+919876543210"></div>` : ""}
-          <button class="primary-button wide" type="submit" id="auth-submit">${signup ? t("createAccount") : t("login")}</button>
-          <p id="auth-message" class="auth-switch"></p>
+          <button class="primary-button wide" type="submit" id="auth-submit">${authSubmitLabel()}</button>
+          <p id="auth-message" class="auth-switch" role="status" aria-live="polite"></p>
         </form>
+        ${(!signup && !recovering && !resetting) ? `<div class="auth-switch"><button class="text-button" id="forgot-password" type="button">${t("forgotPassword")}</button><button class="text-button" id="resend-confirmation" type="button">${t("resendConfirmation")}</button></div>` : ""}
+        ${recovering ? `<button class="text-button" data-mode="signin" type="button">${t("backToSignIn")}</button>` : ""}
+        ${resetting ? `<button class="text-button" id="reset-cancel" type="button">${t("backToSignIn")}</button>` : ""}
       </section>
     </section>`;
   app.querySelectorAll("[data-mode]").forEach(btn => btn.addEventListener("click", () => { state.authMode = btn.dataset.mode; renderAuth(); }));
   document.getElementById("auth-form").addEventListener("submit", handleAuth);
+  const forgot = document.getElementById("forgot-password");
+  if (forgot) forgot.addEventListener("click", () => { state.authMode = "recover"; renderAuth(); });
+  const resetCancel = document.getElementById("reset-cancel");
+  if (resetCancel) resetCancel.addEventListener("click", async () => {
+    state.authMode = "signin";
+    history.replaceState({}, "", window.location.pathname);
+    await supabase.auth.signOut();
+    state.session = null; state.profile = null; renderAuth();
+  });
+  const resend = document.getElementById("resend-confirmation");
+  if (resend) resend.addEventListener("click", async () => {
+    const emailInput = document.getElementById("auth-email");
+    const email = String(emailInput?.value || "").trim().toLowerCase();
+    if (!email) { toast(t("email")+" required", "error"); emailInput?.focus(); return; }
+    resend.disabled = true;
+    try {
+      const { error } = await supabase.auth.resend({ type:"signup", email, options:{ emailRedirectTo:window.location.origin } });
+      if (error) throw error;
+      const message = document.getElementById("auth-message");
+      if (message) message.textContent = t("confirmationResent");
+      toast(t("confirmationResent"), "success");
+    } catch (error) { toast(friendlyError(error), "error"); }
+    finally { if (document.getElementById("resend-confirmation")) resend.disabled = false; }
+  });
 }
 async function handleAuth(event) {
   event.preventDefault();

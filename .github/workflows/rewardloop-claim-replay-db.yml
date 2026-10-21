@@ -1,4 +1,5 @@
 name: RewardLoop isolated database regression
+# Regression suite includes actor-bound replay authorization checks.
 
 on:
   pull_request:

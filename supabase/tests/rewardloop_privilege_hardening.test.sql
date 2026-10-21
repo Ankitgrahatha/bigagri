@@ -36,11 +36,13 @@ BEGIN
     SELECT 1
       FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace
-     WHERE (n.nspname = 'private' AND p.proname IN (
-       'claim_qr','create_rewardloop_campaign','issue_qr_batch','redeem_reward',
-       'resolve_redemption','revoke_qr_batch','set_rewardloop_campaign_status','verify_partner'
-     ))
-        OR (n.nspname = 'public' AND p.proname LIKE 'rewardloop\_%\_internal')
+     WHERE (
+       (n.nspname = 'private' AND p.proname IN (
+         'claim_qr','create_rewardloop_campaign','issue_qr_batch','redeem_reward',
+         'resolve_redemption','revoke_qr_batch','set_rewardloop_campaign_status','verify_partner'
+       ))
+       OR (n.nspname = 'public' AND p.proname LIKE 'rewardloop%internal')
+     )
        AND (
          has_function_privilege('anon', p.oid, 'EXECUTE')
          OR has_function_privilege('authenticated', p.oid, 'EXECUTE')

@@ -23,17 +23,56 @@ Status: **MVP foundation exists; production launch is not yet approved.**
 - Admin CSV exports and redemption resolution operations.
 - Protected admin settings preference store and settings UI.
 
-## Blockers and unverified areas
+## Explicitly missing or unverified: SaaS plans, payments and billing
+
+The existing implementation inspection does **not** establish a working SaaS monetization system. Treat all items below as backlog until code, database schema, tests and provider configuration demonstrate otherwise.
+
+### Plan and entitlement management
+- No verified plan catalogue with versioned monthly/yearly prices, trial rules, currency, tax treatment, feature entitlements and published/retired states.
+- No verified tenant-to-subscription lifecycle or entitlement resolver enforcing plan limits server-side.
+- No verified tenant usage metering, quota warnings, overage rules, add-ons, coupons, trials, grace periods or plan change proration policy.
+- No verified customer billing portal for upgrade, downgrade, cancellation, renewal and payment-method changes.
+- No verified super-admin workspace for plan creation, pricing history, tenant subscriptions, overrides or subscription audit.
+
+### Payments and accounting
+- No verified payment gateway integration for SaaS subscription checkout or one-time invoices.
+- No verified signed payment-webhook endpoint with signature validation, event deduplication, replay safety and reconciliation.
+- No verified durable records for payment attempts, invoices, refunds, credit notes, tax breakdowns, gateway fees or settlement reconciliation.
+- No verified failed-payment retry/dunning workflow, renewal reminders, grace-period expiry or controlled suspension/reactivation.
+- No verified GST invoice numbering, legal business details, HSN/SAC mapping, credit-note handling or accountant-ready exports. These need business/accountant review before production.
+- No verified separation between Growta subscription revenue and RewardLoop's farmer points, reward inventory, campaign budgets, redemption liabilities or partner settlements.
+
+### Required financial invariants
+- A browser redirect or client-supplied success flag must never activate a paid plan. Only a server-verified gateway event or verified provider API response can confirm payment.
+- Webhook processing must be idempotent, authenticated, durable and safe under retries/out-of-order delivery.
+- A payment must map to one tenant, one invoice/order and one currency/amount; mismatches must be quarantined for reconciliation.
+- Subscription state and entitlements must be changed transactionally and audited. Expiry/suspension must not delete tenant data or corrupt reward/points history.
+- Points and redemption stock remain in the database's authoritative transaction path. Redis/cache values must never determine financial balances or permissions.
+- Never store raw card credentials or gateway secrets in the browser, repository or logs.
+
+### Recommended zero-cost-first implementation sequence
+1. Finalize billing domain model and policies before collecting money: plans, immutable plan versions, subscriptions, invoices, payment attempts/events, refunds/credit notes, entitlements, usage counters and audit trail.
+2. Add migrations, constraints, RLS and service-side authorization; derive tenant scope from authenticated membership rather than request-supplied tenant IDs.
+3. Implement a gateway adapter in test mode first (Razorpay is a candidate for India; confirm account eligibility and fees before choosing). Keep gateway-specific IDs alongside internal IDs.
+4. Implement webhook signature verification, durable event inbox, idempotency keys, replay protection and reconciliation job. Test duplicate and out-of-order events.
+5. Build tenant billing pages and a Super Admin billing workspace; enforce quotas on the server and show usage, invoices, payment status and next renewal.
+6. Add invoice/tax documents, payment-failure notifications, grace period, cancellation and recovery paths after policy and accountant review.
+7. Run test-mode end-to-end tests, security review and rollback rehearsal before enabling live payments. Do not use live money or production business records as test fixtures.
+
+Razorpay's documented subscription model supports plans, subscriptions, lifecycle operations and webhooks; it is a candidate provider, not an integration currently claimed to exist. See [Razorpay Subscriptions API](https://razorpay.com/docs/api/payments/subscriptions/create-plan/?preferred-country=IN) and [subscription webhooks overview](https://github.com/razorpay/markdown-docs/blob/master/payments/subscriptions/subscribe-to-webhooks.md).
+
+## Other blockers and unverified areas
 
 - Production Auth email delivery and account confirmation are not verified; current account's email confirmation was previously observed as pending.
 - The settings console does not yet apply SMTP, Auth URL, signup policy or email templates to live Supabase Auth. Its test-email action is a placeholder.
 - Full automated tests for RLS/tenant isolation, concurrent QR claims, duplicate retries, budget enforcement, redemption timeouts, stock restoration and ledger immutability have not been evidenced in the repository inspection.
 - Current client/server configuration is bound to the `growta-rewardloop` tenant slug; customer self-service multi-tenant onboarding is not implemented.
-- Reward provider integration, customer billing, usage metering, formal fraud case handling, backup/restore drill and production alerting remain unverified or incomplete.
+- Reward provider integration, formal fraud case handling, backup/restore drill and production alerting remain unverified or incomplete.
+- Sentry is not confirmed integrated in the inspected source. Redis infrastructure exists but application integration and safe usage are not confirmed. A tenant-aware CMS/control plane is not complete.
 - The account membership was previously added as super_admin, but membership does not prove that a successful admin login or end-to-end operation has been tested.
 
 ## Release decision
 
-**Do not run an unrestricted public rewards campaign yet.** First configure and test production email, verify admin login, test core database RPCs and RLS, and demonstrate that a code can be claimed only once and redemption is financially consistent under retries and concurrent requests.
+**Do not run an unrestricted public rewards campaign or accept live SaaS subscription payments yet.** First configure and test production email, verify admin login, test core database RPCs and RLS, and demonstrate that a code can be claimed only once and redemption is financially consistent under retries and concurrent requests. For monetization, also require test-mode checkout/webhook/reconciliation coverage and reviewed tax/invoice rules before live activation.
 
 See [PRD traceability matrix](./REWARDLOOP_PRD_TRACEABILITY.md) for requirements, evidence and the ordered implementation backlog.

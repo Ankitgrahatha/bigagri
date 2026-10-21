@@ -154,25 +154,112 @@ Deno.serve(async (req: Request) => {
       if (!membership) return reply(403, { ok: false, error: "admin_access_required" });
 
       if (action === "admin_dashboard") {
-        const [partners, campaigns, products, batches, redemptions, rewards] = await Promise.all([
-          admin.from("partners").select("id,display_name,phone_e164,role,verification_status,preferred_locale,created_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(100),
-          admin.from("campaigns").select("id,name,status,starts_at,ends_at,budget_minor_units,currency,rules").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
-          admin.from("products").select("id,sku,name,pack_size,active").eq("tenant_id", tenant.id).order("name").limit(100),
-          admin.from("qr_issuance_batches").select("id,product_id,campaign_id,requested_count,points_value,entitlement_role,status,created_at,completed_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
-          admin.from("redemptions").select("id,partner_id,reward_id,points_cost,status,created_at,fulfilled_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
-          admin.from("rewards").select("id,name,name_hi,points_cost,active,is_demo").eq("tenant_id", tenant.id).order("sort_order").limit(100)
+        const pageSpecs = {
+          partners: { key: "partners_page", size: 50 },
+          campaigns: { key: "campaigns_page", size: 20 },
+          products: { key: "products_page", size: 50 },
+          batches: { key: "batches_page", size: 20 },
+          redemptions: { key: "redemptions_page", size: 20 },
+        } as const;
+
+        const pages: Record<keyof typeof pageSpecs, number> = {
+          partners: 0, campaigns: 0, products: 0, batches: 0, redemptions: 0,
+        };
+        for (const [name, spec] of Object.entries(pageSpecs) as [keyof typeof pageSpecs, typeof pageSpecs[keyof typeof pageSpecs]][]) {
+          const raw = body[spec.key];
+          if (raw === undefined || raw === null || raw === "") continue;
+          const value = Number(raw);
+          if (!Number.isSafeInteger(value) || value < 0 || value > 10000) {
+            return reply(400, { ok: false, error: "invalid_dashboard_page" });
+          }
+          pages[name] = value;
+        }
+
+        const [partners, campaigns, products, batches, redemptions] = await Promise.all([
+          admin.from("partners")
+            .select("id,display_name,phone_e164,role,verification_status,preferred_locale,created_at", { count: "exact" })
+            .eq("tenant_id", tenant.id).order("created_at", { ascending: false }).order("id", { ascending: false })
+            .range(pages.partners * pageSpecs.partners.size, (pages.partners + 1) * pageSpecs.partners.size - 1),
+          admin.from("campaigns")
+            .select("id,name,status,starts_at,ends_at,budget_minor_units,currency,rules,created_at", { count: "exact" })
+            .eq("tenant_id", tenant.id).order("created_at", { ascending: false }).order("id", { ascending: false })
+            .range(pages.campaigns * pageSpecs.campaigns.size, (pages.campaigns + 1) * pageSpecs.campaigns.size - 1),
+          admin.from("products")
+            .select("id,sku,name,pack_size,active,created_at", { count: "exact" })
+            .eq("tenant_id", tenant.id).order("name").order("id")
+            .range(pages.products * pageSpecs.products.size, (pages.products + 1) * pageSpecs.products.size - 1),
+          admin.from("qr_issuance_batches")
+            .select("id,product_id,campaign_id,requested_count,points_value,entitlement_role,status,created_at,completed_at", { count: "exact" })
+            .eq("tenant_id", tenant.id).order("created_at", { ascending: false }).order("id", { ascending: false })
+            .range(pages.batches * pageSpecs.batches.size, (pages.batches + 1) * pageSpecs.batches.size - 1),
+          admin.from("redemptions")
+            .select("id,partner_id,reward_id,points_cost,status,created_at,fulfilled_at", { count: "exact" })
+            .eq("tenant_id", tenant.id).order("created_at", { ascending: false }).order("id", { ascending: false })
+            .range(pages.redemptions * pageSpecs.redemptions.size, (pages.redemptions + 1) * pageSpecs.redemptions.size - 1),
         ]);
-        if ([partners, campaigns, products, batches, redemptions, rewards].some(x => x.error)) return reply(500, { ok: false, error: "admin_dashboard_load_failed" });
-        const partnerById = new Map((partners.data || []).map(p => [p.id, p]));
-        const rewardById = new Map((rewards.data || []).map(r => [r.id, r]));
-        const enrichedRedemptions = (redemptions.data || []).map(r => ({
+        if ([partners, campaigns, products, batches, redemptions].some(x => x.error)) {
+          return reply(500, { ok: false, error: "admin_dashboard_load_failed" });
+        }
+
+        const redemptionRows = redemptions.data || [];
+        const partnerIds = [...new Set(redemptionRows.map(r => r.partner_id))];
+        const rewardIds = [...new Set(redemptionRows.map(r => r.reward_id))];
+        const [redemptionPartners, redemptionRewards, metricsResult] = await Promise.all([
+          admin.from("partners").select("id,display_name,phone_e164").eq("tenant_id", tenant.id)
+            .in("id", partnerIds.length ? partnerIds : ["00000000-0000-0000-0000-000000000000"]),
+          admin.from("rewards").select("id,name,name_hi,is_demo").eq("tenant_id", tenant.id)
+            .in("id", rewardIds.length ? rewardIds : ["00000000-0000-0000-0000-000000000000"]),
+          admin.rpc("rewardloop_admin_dashboard_metrics_internal", {
+            p_actor_user_id: user.id,
+            p_tenant_id: tenant.id,
+          }),
+        ]);
+        if (redemptionPartners.error || redemptionRewards.error) {
+          return reply(500, { ok: false, error: "admin_dashboard_enrichment_failed" });
+        }
+        if (metricsResult.error || !metricsResult.data || metricsResult.data.ok !== true) {
+          return reply(500, { ok: false, error: "admin_dashboard_metrics_failed" });
+        }
+
+        const partnerById = new Map((redemptionPartners.data || []).map(p => [p.id, p]));
+        const rewardById = new Map((redemptionRewards.data || []).map(r => [r.id, r]));
+        const enrichedRedemptions = redemptionRows.map(r => ({
           ...r,
           partner_name: partnerById.get(r.partner_id)?.display_name || "Partner",
           partner_phone: partnerById.get(r.partner_id)?.phone_e164 || "",
           reward_name: rewardById.get(r.reward_id)?.name || "Reward",
-          reward_is_demo: rewardById.get(r.reward_id)?.is_demo ?? false
+          reward_is_demo: rewardById.get(r.reward_id)?.is_demo ?? false,
         }));
-        return reply(200, { ok: true, tenant, role: membership.role, partners: partners.data || [], campaigns: campaigns.data || [], products: products.data || [], batches: batches.data || [], redemptions: enrichedRedemptions });
+
+        const pagination = Object.fromEntries(
+          (Object.keys(pageSpecs) as (keyof typeof pageSpecs)[]).map(name => [
+            name,
+            {
+              page: pages[name],
+              page_size: pageSpecs[name].size,
+              total: ({
+                partners: partners.count,
+                campaigns: campaigns.count,
+                products: products.count,
+                batches: batches.count,
+                redemptions: redemptions.count,
+              })[name] ?? 0,
+            },
+          ]),
+        );
+
+        return reply(200, {
+          ok: true,
+          tenant,
+          role: membership.role,
+          metrics: metricsResult.data,
+          pagination,
+          partners: partners.data || [],
+          campaigns: campaigns.data || [],
+          products: products.data || [],
+          batches: batches.data || [],
+          redemptions: enrichedRedemptions,
+        });
       }
       if (action === "verify_partner") {
         const partnerId = typeof body.partner_id === "string" ? body.partner_id : "";

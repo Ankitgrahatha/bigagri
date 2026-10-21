@@ -32,3 +32,10 @@ test("recovery methods are present in both Hindi and English", () => {
     assert.ok(app.includes(key + ":"), "missing localized key " + key);
   }
 });
+
+test("reset mode remains reachable when the recovery email has already created a session", () => {
+  const resetRoute = app.indexOf('if (state.authMode === "reset") renderAuth();');
+  const authenticatedSetupRoute = app.indexOf('else if (!state.profile) renderProfileSetup();', resetRoute);
+  assert.ok(resetRoute >= 0, "reset mode must be checked before profile setup");
+  assert.ok(authenticatedSetupRoute > resetRoute, "profile setup must be the fallback after reset routing");
+});

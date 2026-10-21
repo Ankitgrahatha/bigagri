@@ -202,12 +202,33 @@ async function handleAuth(event) {
   state.busy = true;
   const form = event.currentTarget, button = document.getElementById("auth-submit");
   button.disabled = true; button.textContent = t("loading");
-  const fd = new FormData(form), email = String(fd.get("email") || "").trim().toLowerCase(), password = String(fd.get("password") || "");
+  const fd = new FormData(form);
+  const email = String(fd.get("email") || "").trim().toLowerCase();
+  const password = String(fd.get("password") || "");
   try {
-    if (state.authMode === "signup") {
+    if (state.authMode === "recover") {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/?auth=reset`
+      });
+      if (error) throw error;
+      const message = document.getElementById("auth-message");
+      if (message) message.textContent = t("recoverySent");
+      toast(t("recoverySent"), "success");
+    } else if (state.authMode === "reset") {
+      const confirmation = String(fd.get("password_confirm") || "");
+      if (password.length < 8 || password !== confirmation) throw new Error("password_mismatch");
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      state.authMode = "signin";
+      history.replaceState({}, "", window.location.pathname);
+      await supabase.auth.signOut();
+      state.session = null; state.profile = null; state.ledger = []; state.redemptions = []; state.balance = 0;
+      renderAuth();
+      toast(t("passwordResetSuccess"), "success");
+    } else if (state.authMode === "signup") {
       const displayName = String(fd.get("name") || "").trim();
       const phone = String(fd.get("phone") || "").trim();
-      if (phone && !/^\+[1-9]\d{7,14}$/.test(phone)) throw new Error("phone_must_be_e164");
+      if (phone && !/^\\+[1-9]\\d{7,14}$/.test(phone)) throw new Error("phone_must_be_e164");
       const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin, data: { display_name: displayName, preferred_locale: state.lang } } });
       if (error) throw error;
       if (data.session) {
@@ -218,7 +239,8 @@ async function handleAuth(event) {
         toast(t("signupSuccess"), "success");
         await loadDashboard();
       } else {
-        document.getElementById("auth-message").textContent = t("emailConfirm");
+        const message = document.getElementById("auth-message");
+        if (message) message.textContent = t("emailConfirm");
         toast(t("signupSuccess"), "success");
       }
     } else {
@@ -229,7 +251,11 @@ async function handleAuth(event) {
       await loadDashboard();
     }
   } catch (error) { toast(friendlyError(error), "error"); }
-  finally { state.busy = false; const btn = document.getElementById("auth-submit"); if (btn) { btn.disabled = false; btn.textContent = state.authMode === "signup" ? t("createAccount") : t("login"); } }
+  finally {
+    state.busy = false;
+    const btn = document.getElementById("auth-submit");
+    if (btn) { btn.disabled = false; btn.textContent = authSubmitLabel(); }
+  }
 }
 function renderProfileSetup() {
   const meta = state.session?.user?.user_metadata || {};
@@ -365,11 +391,23 @@ async function signOut() {
   state.session = null; state.profile = null; state.ledger = []; state.redemptions = []; state.balance = 0; state.view = "home"; state.authMode = "signin";
   render(); toast(t("signedOut"));
 }
-supabase.auth.onAuthStateChange((_event, session) => {
+supabase.auth.onAuthStateChange((event, session) => {
   state.session = session;
-  if (!session) { state.profile = null; state.ledger = []; state.balance = 0; render(); }
+  if (event === "PASSWORD_RECOVERY") {
+    state.authMode = "reset";
+    stopCamera();
+    render();
+    return;
+  }
+  if (state.authMode === "reset") {
+    renderAuth();
+    return;
+  }
+  if (!session) { state.profile = null; state.ledger = []; state.redemptions = []; state.balance = 0; render(); }
   else { queueMicrotask(() => loadDashboard()); }
 });
 const { data: { session } } = await supabase.auth.getSession();
 state.session = session;
-if (session) await loadDashboard(); else render();
+if (state.authMode === "reset") renderAuth();
+else if (session) await loadDashboard();
+else render();

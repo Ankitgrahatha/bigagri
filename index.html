@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#173d2b">
+  <meta name="description" content="Growta RewardLoop — किसान और कृषि साझेदारों के लिए भरोसेमंद रिवॉर्ड प्रोग्राम।">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css">
+  <title>Growta RewardLoop</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Growta RewardLoop home"><span class="brand-mark">G</span><span><b>growta</b><small>REWARDLOOP</small></span></a>
+      <div class="top-actions"><span id="connection-pill" class="connection-pill"><i></i><span data-i18n="connecting">कनेक्ट हो रहा है</span></span><button id="language-toggle" class="ghost-button" type="button" aria-label="Change language">EN</button></div>
+    </header>
+    <main id="app" class="main-content">
+      <section class="hero-skeleton"><div class="skeleton skeleton-title"></div><div class="skeleton skeleton-copy"></div><div class="skeleton skeleton-card"></div></section>
+    </main>
+    <footer class="footer"><span>© <span id="year"></span> Growta RewardLoop</span><span data-i18n="secureByDesign">सुरक्षित और पारदर्शी रिवॉर्ड सिस्टम</span></footer>
+  </div>
+  <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+  <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
+</body>
+</html>

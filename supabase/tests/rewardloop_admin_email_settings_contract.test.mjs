@@ -13,10 +13,10 @@ test("admin UI clearly says preferences do not change live Supabase Auth SMTP", 
 
 test("SMTP password is never persisted to the settings table", () => {
   assert.match(api, /Never persist SMTP passwords in application tables/i);
-  assert.match(api, /if\\(passwordProvided\\) return respond\\(409/);
-  assert.doesNotMatch(api, /allowed\\.smtp_password\\s*=/);
+  assert.match(api, /if\(passwordProvided\) return respond\(409/);
+  assert.doesNotMatch(api, /allowed\.smtp_password\s*=/);
 });
 
 test("SMTP password field is cleared after successful or failed submission", () => {
-  assert.equal((ui.match(/\\$\\("password"\\)\\.value="";/g) || []).length, 2);
+  assert.equal((ui.match(/\$\("password"\)\.value="";/g) || []).length, 2);
 });

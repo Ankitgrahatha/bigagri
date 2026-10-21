@@ -18,5 +18,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Validate smoke-test shell syntax
+        run: bash -n supabase/tests/rewardloop_cors_smoke_test.sh
       - name: Run read-only production boundary checks
         run: bash supabase/tests/rewardloop_cors_smoke_test.sh

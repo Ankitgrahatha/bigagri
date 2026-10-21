@@ -78,7 +78,7 @@ CREATE TRIGGER campaign_liability_ledger_append_only
 CREATE OR REPLACE FUNCTION private.enforce_budgeted_campaign_valuation()
 RETURNS trigger
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path TO 'pg_catalog', 'public', 'private'
 AS $function$
 DECLARE
@@ -179,6 +179,18 @@ BEGIN
      SET point_value_minor_units=p_point_value_minor_units,
          point_value_currency=CASE WHEN p_point_value_currency IS NULL THEN NULL ELSE p_point_value_currency END
    WHERE tenant_id=p_tenant_id;
+
+  IF v_old_value IS DISTINCT FROM p_point_value_minor_units
+     OR upper(trim(coalesce(v_old_currency,''))) IS DISTINCT FROM p_point_value_currency THEN
+    INSERT INTO public.audit_logs(
+      tenant_id, actor_user_id, action, entity_type, entity_id, reason, before_data, after_data
+    ) VALUES (
+      p_tenant_id, p_actor_user_id, 'point_valuation_updated', 'tenant_settings', p_tenant_id,
+      'Tenant point valuation updated through the admin control room',
+      jsonb_build_object('point_value_minor_units',v_old_value,'point_value_currency',v_old_currency),
+      jsonb_build_object('point_value_minor_units',p_point_value_minor_units,'point_value_currency',p_point_value_currency)
+    );
+  END IF;
 
   RETURN jsonb_build_object('ok',true,
     'point_value_minor_units',p_point_value_minor_units,

@@ -782,7 +782,7 @@ CREATE OR REPLACE FUNCTION public.rewardloop_claim_qr_internal(p_actor_user_id u
  RETURNS jsonb
  LANGUAGE sql
  SET search_path TO 'pg_catalog', 'extensions', 'public', 'private'
-AS $function$ select private.claim_qr(p_actor_user_id,p_token,p_request_id,p_app_version,p_device_ref_hash); $function$
+AS $function$ select private.claim_qr(p_actor_user_id,p_token,p_request_id,p_app_version,p_device_ref_hash); $function$;
 
 
 CREATE OR REPLACE FUNCTION public.rewardloop_create_campaign_internal(p_actor_user_id uuid, p_tenant_id uuid, p_name text, p_starts_at timestamp with time zone, p_ends_at timestamp with time zone, p_budget_minor_units bigint)
@@ -790,21 +790,21 @@ CREATE OR REPLACE FUNCTION public.rewardloop_create_campaign_internal(p_actor_us
  LANGUAGE sql
  SECURITY DEFINER
  SET search_path TO 'pg_catalog', 'extensions', 'public', 'private'
-AS $function$ select private.create_rewardloop_campaign(p_actor_user_id,p_tenant_id,p_name,p_starts_at,p_ends_at,p_budget_minor_units); $function$
+AS $function$ select private.create_rewardloop_campaign(p_actor_user_id,p_tenant_id,p_name,p_starts_at,p_ends_at,p_budget_minor_units); $function$;
 
 
 CREATE OR REPLACE FUNCTION public.rewardloop_issue_qr_batch_internal(p_actor_user_id uuid, p_tenant_id uuid, p_campaign_id uuid, p_product_id uuid, p_count integer, p_points_value integer, p_entitlement_role text)
  RETURNS jsonb
  LANGUAGE sql
  SET search_path TO 'pg_catalog', 'extensions', 'public', 'private'
-AS $function$ select private.issue_qr_batch(p_actor_user_id,p_tenant_id,p_campaign_id,p_product_id,p_count,p_points_value,p_entitlement_role); $function$
+AS $function$ select private.issue_qr_batch(p_actor_user_id,p_tenant_id,p_campaign_id,p_product_id,p_count,p_points_value,p_entitlement_role); $function$;
 
 
 CREATE OR REPLACE FUNCTION public.rewardloop_redeem_internal(p_actor_user_id uuid, p_reward_id uuid, p_request_key text)
  RETURNS jsonb
  LANGUAGE sql
  SET search_path TO 'pg_catalog', 'extensions', 'public', 'private'
-AS $function$ select private.redeem_reward(p_actor_user_id,p_reward_id,p_request_key); $function$
+AS $function$ select private.redeem_reward(p_actor_user_id,p_reward_id,p_request_key); $function$;
 
 
 CREATE OR REPLACE FUNCTION public.rewardloop_resolve_redemption_internal(p_actor_user_id uuid, p_tenant_id uuid, p_redemption_id uuid, p_new_status text, p_reason text)
@@ -819,7 +819,7 @@ CREATE OR REPLACE FUNCTION public.rewardloop_revoke_qr_batch_internal(p_actor_us
  RETURNS jsonb
  LANGUAGE sql
  SET search_path TO 'pg_catalog', 'extensions', 'public', 'private'
-AS $function$ select private.revoke_qr_batch(p_actor_user_id,p_tenant_id,p_batch_id,p_reason); $function$
+AS $function$ select private.revoke_qr_batch(p_actor_user_id,p_tenant_id,p_batch_id,p_reason); $function$;
 
 
 CREATE OR REPLACE FUNCTION public.rewardloop_set_campaign_status_internal(p_actor_user_id uuid, p_tenant_id uuid, p_campaign_id uuid, p_new_status text, p_reason text)
@@ -827,14 +827,14 @@ CREATE OR REPLACE FUNCTION public.rewardloop_set_campaign_status_internal(p_acto
  LANGUAGE sql
  SECURITY DEFINER
  SET search_path TO 'pg_catalog', 'extensions', 'public', 'private'
-AS $function$ select private.set_rewardloop_campaign_status(p_actor_user_id,p_tenant_id,p_campaign_id,p_new_status,p_reason); $function$
+AS $function$ select private.set_rewardloop_campaign_status(p_actor_user_id,p_tenant_id,p_campaign_id,p_new_status,p_reason); $function$;
 
 
 CREATE OR REPLACE FUNCTION public.rewardloop_verify_partner_internal(p_actor_user_id uuid, p_tenant_id uuid, p_partner_id uuid, p_new_status text, p_reason text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE sql
  SET search_path TO 'pg_catalog', 'extensions', 'public', 'private'
-AS $function$ select private.verify_partner(p_actor_user_id,p_tenant_id,p_partner_id,p_new_status,p_reason); $function$
+AS $function$ select private.verify_partner(p_actor_user_id,p_tenant_id,p_partner_id,p_new_status,p_reason); $function$;
 
 
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;

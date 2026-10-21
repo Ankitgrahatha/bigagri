@@ -134,7 +134,8 @@ function render() {
   updateConnection();
   document.documentElement.lang = state.lang === "hi" ? "hi" : "en";
   document.title = "Growta RewardLoop";
-  if (!state.session) renderAuth();
+  if (state.authMode === "reset") renderAuth();
+  else if (!state.session) renderAuth();
   else if (!state.profile) renderProfileSetup();
   else renderDashboard();
 }

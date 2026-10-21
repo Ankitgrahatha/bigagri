@@ -21,12 +21,14 @@ Mobile-first, Hindi-first rewards PWA for farmers and agricultural partners. Thi
 
 ## Repository layout
 
-- `index.html` — application shell.
+- `index.html` — farmer application shell.
+- `admin.html`, `admin.js`, `admin.css` — protected partner-verification and QR operations console.
 - `styles.css` — responsive design system.
 - `app.js` — UI, Supabase Auth and data integration.
 - `manifest.webmanifest`, `sw.js` — PWA metadata and static shell caching.
 - `supabase/functions/rewardloop-api/index.ts` — versioned Edge Function source.
 - `docs/PRODUCTION_NOTES.md` — production configuration and release gates.
+- `docs/ADMIN_SETUP.md` — secure first-admin bootstrap instructions.
 
 ## Deployment
 

@@ -2,7 +2,7 @@
 
 ## First administrator bootstrap
 
-The Supabase project currently has no Auth users and no tenant memberships. The admin console is intentionally closed until an owner account is created and explicitly granted a role.
+The Supabase project currently has no verified owner account and no tenant memberships. One unconfirmed Auth account exists; the admin console is intentionally closed until the accountable owner verifies their email and is explicitly granted a role.
 
 1. Open the deployed farmer app and create an account with the owner/operator email you control.
 2. Complete email verification if Supabase requests it.

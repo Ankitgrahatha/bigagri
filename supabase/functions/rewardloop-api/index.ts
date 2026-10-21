@@ -142,7 +142,7 @@ Deno.serve(async (req: Request) => {
       if (action === "admin_dashboard") {
         const [partners, campaigns, products, batches, redemptions, rewards] = await Promise.all([
           admin.from("partners").select("id,display_name,phone_e164,role,verification_status,preferred_locale,created_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(100),
-          admin.from("campaigns").select("id,name,status,starts_at,ends_at,budget_minor_units,currency").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
+          admin.from("campaigns").select("id,name,status,starts_at,ends_at,budget_minor_units,currency,rules").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
           admin.from("products").select("id,sku,name,pack_size,active").eq("tenant_id", tenant.id).order("name").limit(100),
           admin.from("qr_issuance_batches").select("id,product_id,campaign_id,requested_count,points_value,entitlement_role,status,created_at,completed_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
           admin.from("redemptions").select("id,partner_id,reward_id,points_cost,status,created_at,fulfilled_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),

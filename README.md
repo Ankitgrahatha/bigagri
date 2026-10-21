@@ -17,12 +17,15 @@ Mobile-first, Hindi-first rewards PWA for farmers and agricultural partners. Thi
 - Rewards catalogue, points balance and ledger history.
 - QR token entry and camera scanning where the browser supports `BarcodeDetector`.
 - Server-side, idempotent QR claims and redemption requests.
+- Admin campaign creation in draft, date-window validation, explicit activation, pause/archive controls, and audited lifecycle transitions.
+- Admin partner search/status filters and CSV exports for partners and recent redemption operations.
+- Redemption fulfilment/cancellation controls with transactional points refunds and finite-stock restoration.
 - Demo rewards are labelled and cannot be redeemed.
 
 ## Repository layout
 
 - `index.html` — farmer application shell.
-- `admin.html`, `admin.js`, `admin.css` — protected partner-verification and QR operations console.
+- `admin.html`, `admin.js`, `admin.css` — protected partner verification, campaign lifecycle, QR issuance, and redemption operations console.
 - `styles.css` — responsive design system.
 - `app.js` — UI, Supabase Auth and data integration.
 - `manifest.webmanifest`, `sw.js` — PWA metadata and static shell caching.
@@ -53,4 +56,4 @@ Vercel settings should use **Framework Preset: Other**, root directory `.`, no b
 - Test duplicate scans, replay/idempotency, insufficient points, concurrent stock redemption, mobile camera permissions and RLS isolation.
 - Keep the service-role key server-side and review Supabase security/performance advisors before launch.
 
-This is an MVP foundation, not yet a public-ready rewards programme. Demo records are not real offers and must not be represented as redeemable.
+This is an MVP foundation, not yet a public-ready rewards programme. Demo records are not real offers and must not be represented as redeemable. Campaign activation requires an authorized admin; use draft creation first and review dates, budget, products, QR issuance, fulfilment and fraud controls before real packaging.

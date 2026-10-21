@@ -106,3 +106,12 @@ jobs:
 
       - name: Run client-role privilege regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_privilege_hardening.test.sql
+
+      - name: Seed concurrency-only data in disposable database
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_concurrency_fixtures.sql
+
+      - name: Validate concurrency test shell
+        run: bash -n supabase/tests/rewardloop_concurrency_smoke.sh
+
+      - name: Run concurrent claim and redemption tests
+        run: bash supabase/tests/rewardloop_concurrency_smoke.sh

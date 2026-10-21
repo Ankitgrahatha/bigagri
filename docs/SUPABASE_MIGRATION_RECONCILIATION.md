@@ -9,7 +9,8 @@ Date: 2026-10-21
 - Preserved previous migration SQL under `supabase/migration-archive/legacy-unreconciled/` before removing it from the executable migration chain.
 - Added no-op history markers for the 13 migration timestamps currently recorded by the connected project's `supabase_migrations.schema_migrations`. They intentionally contain no DDL: the baseline captures their combined schema state.
 - Added a local-only `supabase/seed.sql` with one demo tenant, a paused demo campaign, a demo product, admin-settings defaults, and non-redeemable sample rewards. It creates no auth users, QR secrets, claims, points ledger entries, or redemptions.
-- Changed isolated CI to bootstrap an empty disposable PostgreSQL database from the baseline, apply the migration folder in timestamp order, load the local seed twice to check idempotency, then run the behavioral and concurrency tests.
+- Added a later default-privilege migration that removes the observed broad grants for newly-created public tables/sequences/functions and removes PostgreSQL's default PUBLIC EXECUTE on future functions. Existing object grants remain reviewed explicitly.
+- Changed isolated CI to bootstrap an empty disposable PostgreSQL database from the baseline, apply the migration folder in timestamp order, load the local seed twice to check idempotency, then run the behavioral, default-privilege, and concurrency tests.
 
 ## Critical deployment boundary
 

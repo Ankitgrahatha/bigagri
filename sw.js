@@ -1,13 +1,22 @@
-const CACHE = "growta-rewardloop-shell-v1";
-const SHELL = ["/", "/index.html", "/styles.css", "/manifest.webmanifest"];
-self.addEventListener("install", event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL))); self.skipWaiting(); });
-self.addEventListener("activate", event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith("growta-rewardloop-") && key !== CACHE).map(key => caches.delete(key)))); self.clients.claim(); });
+const CACHE = "growta-rewardloop-shell-v2";
+const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest"];
+self.addEventListener("install", event => {
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
+  self.skipWaiting();
+});
+self.addEventListener("activate", event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith("growta-rewardloop-shell-") && key !== CACHE).map(key => caches.delete(key)))));
+  self.clients.claim();
+});
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/functions/") || url.pathname.includes("/rest/")) return;
   event.respondWith(fetch(event.request).then(response => {
-    if (response.ok && (url.pathname === "/" || SHELL.includes(url.pathname))) { const copy = response.clone(); caches.open(CACHE).then(cache => cache.put(event.request, copy)); }
+    if (response.ok && SHELL.includes(url.pathname)) {
+      const copy = response.clone();
+      caches.open(CACHE).then(cache => cache.put(event.request, copy));
+    }
     return response;
-  }).catch(() => caches.match(event.request).then(cached => cached || caches.match("/index.html"))));
+  }).catch(() => caches.match(event.request).then(cached => cached || (event.request.mode === "navigate" ? caches.match("/index.html") : undefined))));
 });

@@ -6,20 +6,11 @@ The Supabase project currently has no Auth users and no tenant memberships. The 
 
 1. Open the deployed farmer app and create an account with the owner/operator email you control.
 2. Complete email verification if Supabase requests it.
-3. In Supabase SQL Editor for project `guhhuqxrobhuumwrypnc`, locate that exact account by email and copy its UUID:
+3. In Supabase SQL Editor for project `guhhuqxrobhuumwrypnc`, locate that exact account and copy its UUID:
    ```sql
    select id, email from auth.users where lower(email) = lower('YOUR_OWNER_EMAIL');
    ```
-4. Grant the minimum required tenant role. Replace the UUID with the exact ID returned above:
-   ```sql
-   insert into public.tenant_memberships (tenant_id, user_id, role, status)
-   select t.id, 'YOUR_AUTH_USER_UUID'::uuid, 'super_admin', 'active'
-   from public.tenants t
-   where t.slug = 'growta-rewardloop' and t.status = 'active'
-   on conflict (tenant_id, user_id) do update
-   set role = 'super_admin', status = 'active';
-   ```
-   If the database reports that no unique constraint matches the conflict target, use a guarded insert instead:
+4. Grant the minimum required tenant role. Replace `YOUR_AUTH_USER_UUID` with the exact UUID returned above:
    ```sql
    insert into public.tenant_memberships (tenant_id, user_id, role, status)
    select t.id, 'YOUR_AUTH_USER_UUID'::uuid, 'super_admin', 'active'

@@ -56,6 +56,16 @@ BEGIN
     );
   END IF;
 
+  -- The key is already bound to another claim. Do not reveal its owner/result and
+  -- do not proceed to a second insert that would collide with the tenant-wide unique key.
+  IF EXISTS (
+    SELECT 1 FROM public.claims c
+     WHERE c.tenant_id=v_qr.tenant_id
+       AND c.idempotency_key='claim:'||p_request_id::text
+  ) THEN
+    RETURN jsonb_build_object('ok',false,'outcome','request_id_conflict','points_awarded',0,'replayed',false);
+  END IF;
+
   SELECT p.* INTO v_partner
     FROM public.partners p
    WHERE p.tenant_id=v_qr.tenant_id

@@ -37,5 +37,5 @@ test("admin frontend keeps page state and does not present current-page length a
     assert.ok(admin.includes('pager("' + name + '"'), "missing pager for " + name);
   }
   assert.match(admin, /Export current page/);
-  assert.match(admin, /current-page partner CSV/);
+  assert.match(admin, /Current-page partner CSV/);
 });

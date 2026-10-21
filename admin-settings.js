@@ -4,7 +4,7 @@ const $ = id => document.getElementById(id);
 const status = (message, bad=false) => { $("status").textContent=message; $("status").style.background=bad?"#fff0ed":"#f2f5f2"; };
 let session=null;
 async function api(action, extra={}) {
-  const {data,error}=await supabase.functions.invoke("rewardloop-api",{body:{action,...extra}});
+  const {data,error}=await supabase.functions.invoke("rewardloop-admin-settings",{body:{action,...extra}});
   if(error) throw error;
   if(!data?.ok) throw new Error(data?.error||"Request failed");
   return data;

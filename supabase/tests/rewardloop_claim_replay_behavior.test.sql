@@ -72,7 +72,7 @@ BEGIN
      OR v_other_actor->>'points_awarded' <> '0'
      OR COALESCE(v_other_actor->>'replayed', 'false') <> 'false'
      OR v_other_actor ? 'claim_id' THEN
-    RAISE EXCEPTION 'other actor received another actor\'s replay result: %', v_other_actor;
+    RAISE EXCEPTION 'other actor received another actor''s replay result: %', v_other_actor;
   END IF;
 
   SELECT count(*), COALESCE(sum(points_delta), 0)

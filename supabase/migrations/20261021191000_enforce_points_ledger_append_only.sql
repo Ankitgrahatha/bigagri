@@ -12,6 +12,7 @@ BEGIN
   RAISE EXCEPTION USING
     ERRCODE = '55000',
     MESSAGE = 'points_ledger is append-only; create a compensating entry instead';
+  RETURN NULL;
 END
 $function$;
 

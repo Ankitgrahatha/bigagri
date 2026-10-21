@@ -51,3 +51,37 @@ test("CORS has only the canonical production origin by default", () => {
   assert.match(api, /CONFIGURED_ALLOWED_ORIGINS/);
   assert.doesNotMatch(api, /https:\/\/growta-rewardloop(?:-git-main-acme-bce0|-acme-bce0)?\.vercel\.app/);
 });
+
+test("API rejects missing bearer tokens before invoking any business operation", () => {
+  const missingBearer = api.indexOf('if (!authHeader?.startsWith("Bearer "))');
+  const firstBusinessAction = api.indexOf('if (action === "profile")');
+  assert.notEqual(missingBearer, -1, "missing-bearer guard must exist");
+  assert.ok(firstBusinessAction > missingBearer, "business actions must be unreachable before the bearer guard");
+  assert.match(api, /return reply\(401, \{ ok: false, error: "authentication_required" \}\)/);
+});
+
+test("caller identity is derived from Supabase Auth, never a request-body user id", () => {
+  assert.match(api, /userClient\.auth\.getUser\(\)/);
+  assert.match(api, /p_actor_user_id:\s*user\.id/);
+  assert.doesNotMatch(api, /p_actor_user_id:\s*body\.(?:user_id|actor_user_id)/);
+});
+
+test("disallowed origins are rejected before authentication and business logic", () => {
+  const originGuard = api.indexOf("if (!originAllowed)");
+  const authGuard = api.indexOf('if (!authHeader?.startsWith("Bearer "))');
+  const businessAction = api.indexOf('if (action === "profile")');
+  assert.notEqual(originGuard, -1, "origin allowlist guard must exist");
+  assert.ok(authGuard > originGuard, "origin allowlist must be checked before auth");
+  assert.ok(businessAction > originGuard, "origin allowlist must be checked before business actions");
+  assert.match(api, /return new Response\(null, \{ status: 403/);
+});
+
+test("unexpected API errors are not returned verbatim to clients", () => {
+  assert.match(api, /catch \{\s*\/\/ Avoid returning raw exception details or credentials to the client\.\s*return reply\(500, \{ ok: false, error: "unexpected_server_error" \}\);/);
+});
+
+test("tenant scope is selected server-side and never accepted as an API authority field", () => {
+  assert.match(api, /const TENANT_SLUG = "growta-rewardloop"/);
+  assert.match(api, /\.eq\("slug", TENANT_SLUG\)/);
+  assert.doesNotMatch(api, /\.eq\("tenant_id",\s*body\.tenant_id\)/);
+});

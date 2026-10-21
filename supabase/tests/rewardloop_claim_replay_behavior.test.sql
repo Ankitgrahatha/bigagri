@@ -46,7 +46,7 @@ BEGIN
   )
   VALUES (
     v_qr, v_tenant_id, v_product, v_campaign,
-    encode(digest(convert_to(v_token, 'UTF8'), 'sha256'), 'hex'),
+    encode(extensions.digest(convert_to(v_token, 'UTF8'), 'sha256'), 'hex'),
     'active', 'farmer', 10, now()
   );
 

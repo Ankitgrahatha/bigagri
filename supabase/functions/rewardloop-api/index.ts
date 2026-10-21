@@ -131,6 +131,55 @@ Deno.serve(async (req: Request) => {
       return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
+    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch"].includes(action)) {
+      const { data: tenant, error: tenantError } = await admin.from("tenants").select("id,name,slug,status").eq("slug", TENANT_SLUG).maybeSingle();
+      if (tenantError || !tenant || tenant.status !== "active") return respond(503, { ok: false, error: "tenant_unavailable" });
+      const { data: membership, error: membershipError } = await admin.from("tenant_memberships").select("role,status")
+        .eq("tenant_id", tenant.id).eq("user_id", user.id).eq("status", "active").in("role", ["brand_admin", "super_admin"]).maybeSingle();
+      if (membershipError) return respond(500, { ok: false, error: "admin_authorization_check_failed" });
+      if (!membership) return respond(403, { ok: false, error: "admin_access_required" });
+
+      if (action === "admin_dashboard") {
+        const [partners, campaigns, products, batches, redemptions] = await Promise.all([
+          admin.from("partners").select("id,display_name,phone_e164,role,verification_status,preferred_locale,created_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(100),
+          admin.from("campaigns").select("id,name,status,starts_at,ends_at,budget_minor_units,currency").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
+          admin.from("products").select("id,sku,name,pack_size,active").eq("tenant_id", tenant.id).order("name").limit(100),
+          admin.from("qr_issuance_batches").select("id,product_id,campaign_id,requested_count,points_value,entitlement_role,status,created_at,completed_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50),
+          admin.from("redemptions").select("id,partner_id,reward_id,points_cost,status,created_at").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(50)
+        ]);
+        if ([partners, campaigns, products, batches, redemptions].some(x => x.error)) return respond(500, { ok: false, error: "admin_dashboard_load_failed" });
+        return respond(200, { ok: true, tenant, role: membership.role, partners: partners.data || [], campaigns: campaigns.data || [], products: products.data || [], batches: batches.data || [], redemptions: redemptions.data || [] });
+      }
+      if (action === "verify_partner") {
+        const partnerId = typeof body.partner_id === "string" ? body.partner_id : "";
+        const status = typeof body.status === "string" ? body.status : "";
+        const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(partnerId) || !["verified", "rejected", "suspended"].includes(status)) return respond(400, { ok: false, error: "invalid_verification_request" });
+        const { data, error } = await admin.rpc("rewardloop_verify_partner_internal", { p_actor_user_id: user.id, p_tenant_id: tenant.id, p_partner_id: partnerId, p_new_status: status, p_reason: reason || null });
+        if (error) return respond(500, { ok: false, error: "partner_verification_failed" });
+        return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_verification_response" });
+      }
+      if (action === "issue_qr_batch") {
+        const campaignId = typeof body.campaign_id === "string" ? body.campaign_id : "";
+        const productId = typeof body.product_id === "string" ? body.product_id : "";
+        const count = Number(body.count), pointsValue = Number(body.points_value);
+        const role = typeof body.entitlement_role === "string" ? body.entitlement_role : "farmer";
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuid.test(campaignId) || !uuid.test(productId) || !Number.isInteger(count) || count < 1 || count > 1000 || !Number.isInteger(pointsValue) || pointsValue < 1 || pointsValue > 1000000 || !["farmer", "retailer", "distributor"].includes(role)) return respond(400, { ok: false, error: "invalid_batch_request" });
+        const { data, error } = await admin.rpc("rewardloop_issue_qr_batch_internal", { p_actor_user_id: user.id, p_tenant_id: tenant.id, p_campaign_id: campaignId, p_product_id: productId, p_count: count, p_points_value: pointsValue, p_entitlement_role: role });
+        if (error) return respond(500, { ok: false, error: "qr_batch_issue_failed" });
+        return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_batch_response" });
+      }
+      if (action === "revoke_qr_batch") {
+        const batchId = typeof body.batch_id === "string" ? body.batch_id : "";
+        const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(batchId) || reason.length < 5) return respond(400, { ok: false, error: "invalid_revoke_request" });
+        const { data, error } = await admin.rpc("rewardloop_revoke_qr_batch_internal", { p_actor_user_id: user.id, p_tenant_id: tenant.id, p_batch_id: batchId, p_reason: reason });
+        if (error) return respond(500, { ok: false, error: "qr_batch_revoke_failed" });
+        return respond(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_revoke_response" });
+      }
+    }
+
     return respond(400, { ok: false, error: "unknown_action" });
   } catch {
     // Avoid returning raw exception details or credentials to the client.

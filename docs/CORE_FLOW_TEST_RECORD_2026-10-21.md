@@ -45,3 +45,13 @@ Create a disposable Supabase project or database branch, apply repository migrat
 ## Release gate
 
 Status remains **NO-GO for an unrestricted real-value campaign** until the remaining transactional tests, production email confirmation, budget enforcement, fulfilment reconciliation, and recovery/monitoring checks have passed.
+
+
+## Follow-up hardening — 2026-10-21
+
+- Updated `supabase/functions/rewardloop-api/index.ts` to remove wildcard CORS.
+- Default browser origin allowlist is exactly `https://bigagri.vercel.app`; additional exact origins may be configured using the Edge Function environment variable `ALLOWED_ORIGINS` as a comma-separated list.
+- Requests carrying a disallowed Origin now receive HTTP 403 before authentication or business logic. Requests without an Origin header remain subject to the existing bearer-token authentication and authorization checks.
+- Supabase Edge Function `rewardloop-api` deployed successfully as version 7 with JWT verification enabled.
+- This deployment does not prove end-to-end browser behavior; a production-origin smoke test and any custom-domain/preview-origin configuration still need verification.
+- Security Advisor still reports leaked-password protection disabled and `rewardloop_admin_settings` RLS enabled without policies. These remain open review items.

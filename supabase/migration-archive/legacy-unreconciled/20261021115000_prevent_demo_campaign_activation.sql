@@ -1,3 +1,7 @@
+-- Archived legacy migration file. Its effective schema state is captured in
+-- supabase/migrations/20261021083000_rewardloop_schema_baseline.sql.
+-- Do not execute from this archive.
+
 -- Defense in depth: prevent activation of demo/test campaigns.
 create or replace function private.set_rewardloop_campaign_status(
   p_actor_user_id uuid,p_tenant_id uuid,p_campaign_id uuid,p_new_status text,p_reason text

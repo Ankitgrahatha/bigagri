@@ -1,0 +1,8 @@
+-- Historical migration marker retained to match Supabase remote history.
+-- Its net schema effect is already captured by
+-- supabase/migrations/20261021083000_rewardloop_schema_baseline.sql.
+-- Intentionally empty: do not replay legacy DDL on a clean database after the baseline.
+-- The archived original SQL, where available, is under supabase/migration-archive/legacy-unreconciled/.
+-- Before deploying the baseline to an existing project, verify schema equality and mark baseline
+-- version 20261021083000 as applied with Supabase CLI migration repair (history-only; no SQL runs).
+-- Remote history version: 20261021121229; historical name: rewardloop_admin_settings.

@@ -80,26 +80,31 @@ jobs:
             AS $$ SELECT COALESCE(NULLIF(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb) $$;
           SQL
 
-      - name: Load schema-only fixture (no production data)
-        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/rewardloop_schema_snapshot.sql
+      - name: Validate Supabase project config
+        run: |
+          python3 - <<'PY'
+          import tomllib
+          with open("supabase/config.toml", "rb") as f:
+              config = tomllib.load(f)
+          assert config["project_id"] == "bigagri"
+          assert config["db"]["major_version"] == 17
+          assert config["db"]["seed"]["enabled"] is True
+          assert config["db"]["seed"]["sql_paths"] == ["./seed.sql"]
+          print("PASS: Supabase TOML configuration")
+          PY
 
-      - name: Apply actor-scoped claim replay migration to the disposable database
-        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021170000_scope_claim_replay_to_actor.sql
+      - name: Apply all migrations from clean baseline in version order
+        run: |
+          set -euo pipefail
+          for migration in supabase/migrations/*.sql; do
+            echo "==> $migration"
+            psql -v ON_ERROR_STOP=1 -f "$migration"
+          done
 
-      - name: Apply actor-scoped redemption replay migration to the disposable database
-        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021182000_scope_redemption_replay_to_actor.sql
-
-      - name: Apply QR-bound claim replay migration to the disposable database
-        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021183000_bind_claim_replay_to_qr.sql
-
-      - name: Apply least-privilege grant migration to the disposable database
-        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021190000_harden_reward_table_privileges.sql
-
-      - name: Apply append-only ledger trigger to the disposable database
-        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021191000_enforce_points_ledger_append_only.sql
-
-      - name: Apply tenant-scoped public catalog migration to disposable database
-        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261021192000_scope_public_catalog_by_tenant.sql
+      - name: Apply local seed data twice to verify idempotency
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/seed.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/seed.sql
 
       - name: Run transactional claim replay regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_claim_replay_behavior.test.sql

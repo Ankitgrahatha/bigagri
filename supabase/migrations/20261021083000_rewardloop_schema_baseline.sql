@@ -1,5 +1,8 @@
--- TEST-ONLY SCHEMA FIXTURE generated from live RewardLoop schema metadata. No tenant/claim/reward rows are included.
--- DO NOT use as a production migration. This is an isolated test bootstrap only.
+-- Growta RewardLoop reconciled schema baseline (2026-10-21).
+-- This file defines schema only: no tenant, farmer, QR, claim, points, reward, or redemption rows.
+-- The live migration history is reconciled through same-timestamp no-op markers beneath this baseline.
+-- On the existing linked project, mark this baseline timestamp as applied only after a schema diff confirms
+-- that the live database matches this snapshot. Never run this DDL directly against the existing production DB.
 CREATE SCHEMA IF NOT EXISTS private;
 CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;

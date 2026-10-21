@@ -1,3 +1,7 @@
+-- Archived legacy migration file. Its effective schema state is captured in
+-- supabase/migrations/20261021083000_rewardloop_schema_baseline.sql.
+-- Do not execute from this archive.
+
 
 create or replace function private.resolve_redemption(
   p_actor_user_id uuid, p_tenant_id uuid, p_redemption_id uuid, p_new_status text, p_reason text

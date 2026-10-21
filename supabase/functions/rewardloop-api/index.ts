@@ -145,13 +145,34 @@ Deno.serve(async (req: Request) => {
       return reply(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
-    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign"].includes(action)) {
+    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value"].includes(action)) {
       const { data: tenant, error: tenantError } = await admin.from("tenants").select("id,name,slug,status").eq("slug", TENANT_SLUG).maybeSingle();
       if (tenantError || !tenant || tenant.status !== "active") return reply(503, { ok: false, error: "tenant_unavailable" });
       const { data: membership, error: membershipError } = await admin.from("tenant_memberships").select("role,status")
         .eq("tenant_id", tenant.id).eq("user_id", user.id).eq("status", "active").in("role", ["brand_admin", "super_admin"]).maybeSingle();
       if (membershipError) return reply(500, { ok: false, error: "admin_authorization_check_failed" });
       if (!membership) return reply(403, { ok: false, error: "admin_access_required" });
+
+      if (action === "set_point_value") {
+        const pointValue = Number(body.point_value_minor_units);
+        const currency = String(body.point_value_currency || "").trim().toUpperCase();
+        if (!Number.isSafeInteger(pointValue) || pointValue < 1 || pointValue > 1000000 || !/^[A-Z]{3}$/.test(currency)) {
+          return reply(400, { ok: false, error: "invalid_point_value" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_set_point_value_internal", {
+          p_actor_user_id: user.id,
+          p_tenant_id: tenant.id,
+          p_point_value_minor_units: pointValue,
+          p_point_value_currency: currency,
+        });
+        if (error) return reply(500, { ok: false, error: "point_value_save_failed" });
+        if (!data || data.ok !== true) {
+          return reply(data?.error === "forbidden" ? 403 : 400, {
+            ok: false, error: data?.error || "point_value_save_failed"
+          });
+        }
+        return reply(200, data);
+      }
 
       if (action === "admin_dashboard") {
         const pageSpecs = {

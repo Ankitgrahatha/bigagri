@@ -109,6 +109,9 @@ jobs:
       - name: Run exact admin dashboard metrics regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_admin_dashboard_metrics.test.sql
 
+      - name: Run atomic campaign budget regression test
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_campaign_budget_behavior.test.sql
+
       - name: Run transactional claim replay regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_claim_replay_behavior.test.sql
 

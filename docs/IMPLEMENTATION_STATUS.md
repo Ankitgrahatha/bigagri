@@ -16,7 +16,7 @@ Status: **MVP foundation exists; production launch is not yet approved.**
 - Hindi-first/English-switchable responsive PWA shell.
 - Supabase email/password auth and profile onboarding.
 - Partner verification admin flow.
-- Product and campaign management with explicit campaign lifecycle controls.
+- Product and campaign management with explicit campaign lifecycle controls. A new isolated-tested migration adds explicit point valuation, an append-only campaign award-liability ledger, serialized budget checks and fail-closed activation rules; it remains pending production deployment until reviewed.
 - Unique QR batch issuance, one-time token download and batch revocation.
 - Server-side QR claim and redemption endpoints using database RPCs.
 - Points ledger, scan events, claim records, redemption history and audit tables.
@@ -65,7 +65,7 @@ Razorpay's documented subscription model supports plans, subscriptions, lifecycl
 
 - Production Auth email delivery and account confirmation are not verified; current account's email confirmation was previously observed as pending.
 - The settings console does not yet apply SMTP, Auth URL, signup policy or email templates to live Supabase Auth. Its test-email action is a placeholder.
-- Full automated tests for RLS/tenant isolation, concurrent QR claims, duplicate retries, budget enforcement, redemption timeouts, stock restoration and ledger immutability have not been evidenced in the repository inspection.
+- The repository now has isolated PostgreSQL regression coverage for tenant catalog isolation, exact dashboard metrics, claim/redeem idempotency, concurrent requests, campaign budgets, refund/stock restoration, client grants, future-object default privileges and ledger immutability. These tests do not prove the connected production database has received the latest migrations or that full Supabase Auth email delivery works.
 - Current client/server configuration is bound to the `growta-rewardloop` tenant slug; customer self-service multi-tenant onboarding is not implemented.
 - Reward provider integration, formal fraud case handling, backup/restore drill and production alerting remain unverified or incomplete.
 - Sentry is not confirmed integrated in the inspected source. Redis infrastructure exists but application integration and safe usage are not confirmed. A tenant-aware CMS/control plane is not complete.
@@ -73,6 +73,6 @@ Razorpay's documented subscription model supports plans, subscriptions, lifecycl
 
 ## Release decision
 
-**Do not run an unrestricted public rewards campaign or accept live SaaS subscription payments yet.** First configure and test production email, verify admin login, test core database RPCs and RLS, and demonstrate that a code can be claimed only once and redemption is financially consistent under retries and concurrent requests. For monetization, also require test-mode checkout/webhook/reconciliation coverage and reviewed tax/invoice rules before live activation.
+**Do not run an unrestricted public rewards campaign or accept live SaaS subscription payments yet.** Before a controlled pilot, configure and test production email, verify admin login, apply and verify the reviewed pending production migrations, configure an approved point valuation for every budgeted campaign, and conduct a production go/no-go review. Isolated CI now exercises one-time claims, budget caps, redemption accounting, grants/RLS and concurrent requests, but it does not substitute for deployment verification. For monetization, also require test-mode checkout/webhook/reconciliation coverage and reviewed tax/invoice rules before live activation.
 
 See [PRD traceability matrix](./REWARDLOOP_PRD_TRACEABILITY.md) for requirements, evidence and the ordered implementation backlog.

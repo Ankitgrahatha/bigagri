@@ -1,10 +1,10 @@
 # RewardLoop Core Flow Test Record — 2026-10-21
 
-## Environment
+## Environment and safety
 
-- Supabase project: `guhhuqxrobhuumwrypnc` (production project)
 - Repository: `Ankitgrahatha/bigagri`, branch `main`
-- Test approach: read-only metadata assertions plus RPC negative-input smoke tests. No production QR, user balance, reward stock, or campaign was mutated.
+- Supabase project: `guhhuqxrobhuumwrypnc`
+- Checks executed against production were read-only metadata queries and invalid-input RPC calls. No real QR, balance, reward stock, or campaign was mutated.
 
 ## Executed checks
 
@@ -12,10 +12,14 @@
 |---|---|---|
 | RLS enabled on selected core tables | PASS | Catalog assertion ran without exception |
 | Privileged internal RPCs denied to anon/authenticated and granted to service_role | PASS | Catalog assertion ran without exception |
-| Demo-campaign activation guard present in private lifecycle function | PASS | Catalog source assertion ran without exception |
+| Demo-campaign activation guard present | PASS | Catalog source assertion ran without exception |
 | Explicit client deny policy for QR codes | PASS | Catalog policy assertion ran without exception |
 | Claim RPC rejects null actor / invalid request safely | PASS | Returned `ok=false`, `outcome=invalid_request`, `points_awarded=0` |
 | Redemption RPC rejects null actor / invalid request safely | PASS | Returned `ok=false`, `error=invalid_request` |
+| Accepted-claim uniqueness guard | PASS | `claims_one_accepted_per_qr_idx` exists as a partial unique index |
+| Claim and ledger idempotency guards | PASS | Unique indexes exist on tenant + idempotency key |
+| Redemption idempotency guard | PASS | Unique index exists on tenant + request key |
+| QR token uniqueness guard | PASS | Unique index exists on tenant + token hash |
 
 The reusable catalog assertion is committed at `supabase/tests/rewardloop_security_contract.sql`.
 
@@ -36,7 +40,7 @@ These checks require isolated test records and ideally a disposable Supabase pro
 
 ## Next required setup
 
-Create a disposable Supabase project or isolated database branch, apply repository migrations, and run deterministic integration tests there. A live database branch may incur usage charges, so it should not be created without explicit budget approval. Do not run concurrency or balance-mutating tests against the production tenant.
+Create a disposable Supabase project or database branch, apply repository migrations, and run deterministic integration tests there. A database branch may incur usage charges; do not create it until the applicable cost is known and approved. No production balance-mutating or concurrency tests should be run.
 
 ## Release gate
 

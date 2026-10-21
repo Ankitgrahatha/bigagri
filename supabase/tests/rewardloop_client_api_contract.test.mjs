@@ -45,3 +45,9 @@ test("account balance is summed across ledger pages, not only the recent activit
   assert.match(client, /state\.balance = balance;/);
   assert.doesNotMatch(client, /state\.balance = state\.ledger\.reduce/);
 });
+
+test("CORS has only the canonical production origin by default", () => {
+  assert.match(api, /DEFAULT_ALLOWED_ORIGINS\s*=\s*\["https:\/\/bigagri\.vercel\.app"\]/);
+  assert.match(api, /CONFIGURED_ALLOWED_ORIGINS/);
+  assert.doesNotMatch(api, /https:\/\/growta-rewardloop(?:-git-main-acme-bce0|-acme-bce0)?\.vercel\.app/);
+});

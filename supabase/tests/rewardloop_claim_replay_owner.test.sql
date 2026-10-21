@@ -39,7 +39,7 @@ BEGIN
 
   v_result_a := private.claim_qr(v_user_a,'replay-owner-token-a',v_request,'test','device-a');
   IF v_result_a->>'outcome'<>'accepted' OR v_result_a->>'points_awarded'<>'10' THEN
-    RAISE EXCEPTION 'first owner's claim failed: %',v_result_a;
+    RAISE EXCEPTION 'first owner claim failed: %',v_result_a;
   END IF;
   v_claim_id := (v_result_a->>'claim_id')::uuid;
 

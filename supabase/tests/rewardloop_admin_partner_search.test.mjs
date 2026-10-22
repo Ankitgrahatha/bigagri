@@ -12,6 +12,7 @@ test("partner search and status are sent with the tenant-scoped dashboard reques
 
 test("partner search input is bounded and strips PostgREST filter grammar", () => {
   assert.match(api, /rawPartnerQuery/);
+  assert.ok(api.includes('rawPartnerQuery.replace(/[^A-Za-z0-9 +.@-]/g, "").trim().slice(0, 80)'));
   assert.match(api, /A-Za-z0-9/);
   assert.match(api, /slice\(0, 80\)/);
   assert.match(api, /partnersQuery\.or\(/);

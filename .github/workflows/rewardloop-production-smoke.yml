@@ -64,5 +64,6 @@ jobs:
             grep -qi '^permissions-policy: camera=(self), microphone=(), geolocation=(), payment=()' "$tmp/$safe.headers"
             echo "PASS: $route returned HTTP 200 with required security headers"
           done
-          grep -q 'Growta RewardLoop' "$tmp/__.body"
-          grep -q 'rewardloop-api' <(curl --silent --show-error --location --max-time 20 https://bigagri.vercel.app/admin.js) || true
+          grep -qi 'Growta RewardLoop' "$tmp/__.body"
+          grep -q 'RewardLoop Admin' "$tmp/__admin_html.body"
+          grep -q 'admin_settings_get' <(curl --silent --show-error --location --max-time 20 https://bigagri.vercel.app/admin-settings.js)

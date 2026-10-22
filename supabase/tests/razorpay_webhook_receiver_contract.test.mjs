@@ -28,7 +28,7 @@ test("receiver bounds payload size and requires server-side secrets", () => {
 
 test("receiver durably records receipts and acknowledges database errors with retryable status", () => {
   assert.match(receiver, /record_saas_payment_webhook_event_internal/);
-  assert.match(receiver, /ON CONFLICT/i);
+  assert.match(receiver, /p_provider_event_id: providerEventId/);
   assert.match(receiver, /respond\(503, \{ ok: false, error: "receipt_unavailable" \}\)/);
   assert.match(receiver, /duplicate: receipt\.duplicate === true/);
 });

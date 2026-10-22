@@ -44,3 +44,65 @@ ALTER TABLE private.saas_payment_webhook_events FORCE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE private.saas_payment_webhook_events
   FROM PUBLIC, anon, authenticated;
 GRANT ALL PRIVILEGES ON TABLE private.saas_payment_webhook_events TO service_role;
+
+-- The Edge Function uses this narrow RPC because the private schema is not exposed
+-- through PostgREST. The RPC records receipts only; it never activates entitlements.
+CREATE OR REPLACE FUNCTION private.record_saas_payment_webhook_event(
+  p_provider_event_id text,
+  p_event_type text,
+  p_payload jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public', 'private'
+AS $function$
+DECLARE
+  v_inserted integer;
+BEGIN
+  IF p_provider_event_id IS NULL
+     OR length(btrim(p_provider_event_id)) NOT BETWEEN 1 AND 255
+     OR p_event_type IS NULL
+     OR length(btrim(p_event_type)) NOT BETWEEN 1 AND 160
+     OR p_payload IS NULL
+     OR jsonb_typeof(p_payload) <> 'object' THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'invalid_event');
+  END IF;
+
+  INSERT INTO private.saas_payment_webhook_events (
+    provider, provider_event_id, event_type, payload, signature_verified_at
+  )
+  VALUES (
+    'razorpay', btrim(p_provider_event_id), btrim(p_event_type), p_payload, now()
+  )
+  ON CONFLICT (provider, provider_event_id) DO NOTHING;
+
+  GET DIAGNOSTICS v_inserted = ROW_COUNT;
+  RETURN jsonb_build_object('ok', true, 'duplicate', v_inserted = 0);
+END
+$function$;
+
+REVOKE ALL PRIVILEGES ON FUNCTION private.record_saas_payment_webhook_event(text,text,jsonb)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.record_saas_payment_webhook_event(text,text,jsonb)
+  TO service_role;
+
+CREATE OR REPLACE FUNCTION public.record_saas_payment_webhook_event_internal(
+  p_provider_event_id text,
+  p_event_type text,
+  p_payload jsonb
+)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public', 'private'
+AS $function$
+  SELECT private.record_saas_payment_webhook_event(
+    p_provider_event_id, p_event_type, p_payload
+  );
+$function$;
+
+REVOKE ALL PRIVILEGES ON FUNCTION public.record_saas_payment_webhook_event_internal(text,text,jsonb)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_saas_payment_webhook_event_internal(text,text,jsonb)
+  TO service_role;

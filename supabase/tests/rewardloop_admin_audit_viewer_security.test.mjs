@@ -15,7 +15,7 @@ test("audit viewer is behind the shared authenticated tenant-admin authorization
 
 test("audit API is tenant-filtered, paginated, and excludes sensitive before/after payloads", () => {
   const start = api.indexOf('if (action === "admin_audit_logs")');
-  const end = api.indexOf('if (action === "set_point_value")', start);
+  const end = api.indexOf('if (action === "admin_record_export")', start);
   const handler = api.slice(start, end);
   assert.match(handler, /\.eq\("tenant_id", tenant\.id\)/);
   assert.match(handler, /\.range\(rawPage \* pageSize, \(rawPage \+ 1\) \* pageSize - 1\)/);

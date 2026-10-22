@@ -341,7 +341,7 @@ async function claimQr(event) {
     const result = await api("claim", { token, request_id: crypto.randomUUID() });
     if (result.ok && result.outcome === "accepted") { toast(t("claimAccepted"), "success"); tokenInput.value = ""; await loadDashboard(); }
     else {
-      const key = ({ invalid_code:"claimInvalid", already_claimed:"claimDuplicate", ineligible:"claimIneligible", campaign_inactive:"claimCampaign", revoked:"claimInvalid", expired:"claimInvalid", not_activated:"claimInvalid" })[result.outcome] || "claimError";
+      const key = ({ invalid_code:"claimInvalid", rate_limited:"claimRateLimited", already_claimed:"claimDuplicate", ineligible:"claimIneligible", campaign_inactive:"claimCampaign", revoked:"claimInvalid", expired:"claimInvalid", not_activated:"claimInvalid" })[result.outcome] || "claimError";
       toast(t(key), "error");
     }
   } catch (error) { toast(friendlyError(error, "claimError"), "error"); }

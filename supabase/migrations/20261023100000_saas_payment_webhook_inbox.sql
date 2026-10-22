@@ -16,6 +16,7 @@ CREATE TABLE private.saas_payment_webhook_events (
   attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
   received_at timestamptz NOT NULL DEFAULT now(),
   processing_started_at timestamptz,
+  last_attempt_at timestamptz,
   processed_at timestamptz,
   processing_result text CHECK (processing_result IS NULL OR processing_result IN ('applied', 'ignored', 'stale')),
   last_error_code text
@@ -30,7 +31,7 @@ CREATE TABLE private.saas_payment_webhook_events (
 );
 
 CREATE INDEX saas_payment_webhook_events_pending_idx
-  ON private.saas_payment_webhook_events (received_at, id)
+  ON private.saas_payment_webhook_events (status, last_attempt_at, received_at, id)
   WHERE status IN ('received', 'failed');
 
 CREATE INDEX saas_payment_webhook_events_processing_idx

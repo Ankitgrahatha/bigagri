@@ -24,12 +24,12 @@ async function boot(){
     $("confirmSubject").value=s.confirmation_subject||$("confirmSubject").value; $("confirmBody").value=s.confirmation_body||$("confirmBody").value;
     $("recoverySubject").value=s.recovery_subject||$("recoverySubject").value; $("recoveryBody").value=s.recovery_body||$("recoveryBody").value;
     $("configSummary").textContent="Preferences loaded. SMTP live-configuration status: "+(s.smtp_configured?"configured":"not connected to Supabase Auth yet")+". Updated: "+(s.updated_at||"not available")+".";
-    status("Admin access verified. Changes are saved to the protected settings store.");
+    status("Admin access verified. These are saved preferences only; live Supabase Auth SMTP and Auth settings are not changed by this page.");
   }catch(e){status("Admin console unavailable: "+e.message+". Ensure your account has an active brand_admin or super_admin membership.",true);}
 }
 async function save(action,payload){
-  try{status("Saving…");const result=await api(action,payload);status(result.message||"Settings saved successfully.");await boot();}
-  catch(e){status("Save failed: "+e.message,true);}
+  try{status("Saving preferences…");const result=await api(action,payload);status(result.message||"Preferences saved.");if(action==="admin_settings_save"&&payload.settings?.smtp_password){$("password").value="";}await boot();}
+  catch(e){if(action==="admin_settings_save"&&payload.settings?.smtp_password){$("password").value="";}status("Save failed: "+e.message+(payload.settings?.smtp_password?" The SMTP credential was not saved; the live Auth integration is not installed. The password field has been cleared.":""),true);}
 }
 $("saveEmail").addEventListener("click",()=>save("admin_settings_save",{settings:{email_provider:$("provider").value,sender_email:$("sender").value.trim(),sender_name:$("senderName").value.trim(),smtp_host:$("host").value.trim(),smtp_port:Number($("port").value),smtp_username:$("username").value.trim(),smtp_password:$("password").value}}));
 $("saveAuth").addEventListener("click",()=>save("admin_settings_save",{settings:{site_url:$("siteUrl").value.trim(),redirect_urls:$("redirects").value.split("\n").map(x=>x.trim()).filter(Boolean),signup_enabled:$("signupEnabled").checked,email_confirmation_required:$("emailConfirm").checked}}));

@@ -7,6 +7,7 @@ on:
       - "app.js"
       - "admin.js"
       - "admin-settings.js"
+      - "admin-settings.html"
       - "sw.js"
       - "index.html"
       - "admin.html"
@@ -65,7 +66,7 @@ jobs:
 
       - name: Run RewardLoop contract and replay regression tests
         run: |
-          node --test supabase/tests/rewardloop_frontend_asset_smoke.test.mjs node --test supabase/tests/rewardloop_client_api_contract.test.mjs supabase/tests/rewardloop_claim_replay_security.test.mjs supabase/tests/rewardloop_claim_replay_resource_security.test.mjs supabase/tests/rewardloop_redemption_replay_security.test.mjs supabase/tests/rewardloop_redemption_resolution_security.test.mjs supabase/tests/rewardloop_admin_settings_security.test.mjs supabase/tests/rewardloop_auth_recovery_contract.test.mjs supabase/tests/rewardloop_admin_dashboard_metrics.test.mjs supabase/tests/rewardloop_campaign_budget_security.test.mjs supabase/tests/rewardloop_admin_rpc_tenant_isolation_contract.test.mjs supabase/tests/rewardloop_vercel_headers.test.mjs
+          node --test supabase/tests/rewardloop_frontend_asset_smoke.test.mjs supabase/tests/rewardloop_client_api_contract.test.mjs supabase/tests/rewardloop_claim_replay_security.test.mjs supabase/tests/rewardloop_claim_replay_resource_security.test.mjs supabase/tests/rewardloop_redemption_replay_security.test.mjs supabase/tests/rewardloop_redemption_resolution_security.test.mjs supabase/tests/rewardloop_admin_settings_security.test.mjs supabase/tests/rewardloop_auth_recovery_contract.test.mjs supabase/tests/rewardloop_admin_dashboard_metrics.test.mjs supabase/tests/rewardloop_campaign_budget_security.test.mjs supabase/tests/rewardloop_admin_rpc_tenant_isolation_contract.test.mjs supabase/tests/rewardloop_vercel_headers.test.mjs
 
       - name: Validate read-only boundary smoke script
         run: |

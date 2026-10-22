@@ -17,7 +17,7 @@
       <div class="admin-head"><div><div class="eyebrow">ADMINISTRATION</div><h1>Platform settings</h1><p class="muted">Manage email delivery, authentication and customer-facing email copy.</p></div><button id="signout" class="secondary-button" type="button">Sign out</button></div>
       <div id="status" class="admin-status" role="status">Checking your admin access…</div>
       <div id="console" class="admin-grid" hidden>
-        <section class="admin-card"><h2>Email delivery</h2><p class="admin-note">Configure SMTP securely. Credentials are write-only and must never be displayed after saving.</p>
+        <section class="admin-card"><h2>Email delivery</h2><p class="admin-note">This form saves non-secret preferences only. Live Supabase Auth SMTP changes are not applied until the privileged server integration is installed. Never paste production credentials here until that integration is available.</p>
           <label for="provider">Provider</label><select id="provider"><option value="gmail">Gmail SMTP</option><option value="resend">Resend SMTP</option><option value="custom">Other SMTP</option></select>
           <label for="sender">Sender email</label><input id="sender" type="email" autocomplete="off" placeholder="no-reply@yourdomain.com">
           <label for="senderName">Sender name</label><input id="senderName" maxlength="120" placeholder="Growta RewardLoop">
@@ -25,7 +25,7 @@
           <label for="port">SMTP port</label><input id="port" type="number" min="1" max="65535" value="587">
           <label for="username">SMTP username</label><input id="username" autocomplete="off">
           <label for="password">SMTP password / app password</label><input id="password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current credential">
-          <p class="admin-note danger-note">The live Supabase Auth SMTP configuration is separate from saved UI preferences. This form will only apply changes when the secure server integration is configured.</p>
+          <p class="admin-note danger-note">Live Supabase Auth SMTP is not configured by this form yet. Saving preferences does not change email delivery. If you enter an SMTP password before integration is installed, it will be rejected and the field cleared.</p>
           <div class="admin-actions"><button id="saveEmail" class="primary-button" type="button">Save email settings</button><button id="testEmail" class="secondary-button" type="button">Send test email</button></div>
         </section>
         <section class="admin-card"><h2>Authentication</h2><p class="admin-note">Security-first controls for account creation and confirmation.</p>

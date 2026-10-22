@@ -7,14 +7,63 @@ const sql = readFileSync(
   "utf8",
 );
 
+// Split only on semicolons that are SQL statement delimiters, not inside
+// quoted literals or line comments. The diagnostic contains a literal ';'.
+function splitSqlStatements(source) {
+  const statements = [];
+  let current = "";
+  let inSingleQuote = false;
+  let inLineComment = false;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    const next = source[i + 1];
+
+    if (inLineComment) {
+      if (char === "\n") {
+        inLineComment = false;
+        current += char;
+      }
+      continue;
+    }
+
+    if (!inSingleQuote && char === "-" && next === "-") {
+      inLineComment = true;
+      i += 1;
+      continue;
+    }
+
+    if (char === "'") {
+      current += char;
+      if (inSingleQuote && next === "'") {
+        current += next;
+        i += 1;
+        continue;
+      }
+      inSingleQuote = !inSingleQuote;
+      continue;
+    }
+
+    if (char === ";" && !inSingleQuote) {
+      if (current.trim()) statements.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.trim()) statements.push(current.trim());
+  assert.equal(inSingleQuote, false, "SQL contains an unterminated string literal");
+  return statements;
+}
+
 test("production schema diagnostic is query-only", () => {
-  const statements = sql
-    .split(";")
-    .map((statement) => statement.split("\n").filter((line) => !line.trim().startsWith("--")).join("\n").trim())
-    .filter(Boolean);
+  const statements = splitSqlStatements(sql);
   assert.equal(statements.length, 4);
   for (const statement of statements) {
-    assert.ok(statement.startsWith("WITH ") || statement.startsWith("SELECT "));
+    assert.match(statement, /^(WITH|SELECT)\s/i);
+    assert.doesNotMatch(statement, /\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE)\b/i);
   }
 });
 

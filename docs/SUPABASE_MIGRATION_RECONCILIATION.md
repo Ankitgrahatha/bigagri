@@ -25,10 +25,10 @@ A read-only query captured deterministic SHA-256 fingerprints from the live proj
 | Public indexes | 60 | `9d67f1e13fcaca28de634af6810f33d0b478806b62b6c49b69d4a2469a7e8a1d` |
 | Public RLS policies | 14 | `55e32a204770348638ee3366e69ec6e77b590dfcaedd97a46e31cbe12e1b65dd` |
 | Public/private RLS table flags | 15 | `ea231962c74cee2034e24221b023b7bcf79a01a0aa32550fc22eb6c413fd752a` |
-| Public table ACLs | 15 | `64a3c59af6a5583a528ec331353b4628ec978fa080b2a5d6189204b54e5d8d59` |
+| Public table ACLs | 15 | Per-table effective grant fingerprints embedded in the parity test |
 | Public/private non-internal triggers | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 
-The isolated PostgreSQL workflow now applies the baseline and the 13 historical timestamp markers, runs `rewardloop_live_schema_parity.test.sql`, and only then applies later feature/security migrations. The fingerprint test compares counts and signatures for columns, constraints, enum labels, per-function bodies and security configuration, indexes, policies, RLS flags, table ACLs, and triggers. Default ACLs are checked behaviorally by creating and dropping disposable probe objects after the fingerprints are checked; this avoids false mismatches from PostgreSQL's textual ACL ordering while still proving the expected effective grants.
+The isolated PostgreSQL workflow now applies the baseline and the 13 historical timestamp markers, runs `rewardloop_live_schema_parity.test.sql`, and only then applies later feature/security migrations. The fingerprint test compares counts and signatures for columns, constraints, enum labels, per-function bodies and security configuration, indexes, policies, RLS flags, per-table ACLs, and triggers. Default ACLs are checked behaviorally by creating and dropping disposable probe objects after the fingerprints are checked; this avoids false mismatches from PostgreSQL's textual ACL ordering while still proving the expected effective grants.
 
 This is a stricter gate than comparing object names and counts, but it is still a fingerprint of the listed catalog surfaces—not a physical backup or proof of runtime behavior. The workflow must pass before considering the baseline equivalent. Do not run history repair or push migrations solely because this file contains the expected hashes.
 

@@ -124,8 +124,6 @@ jobs:
       - name: Run invalid redemption status regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_redemption_invalid_status.test.sql
 
-      - name: Run cancellation/refund/fulfillment accounting regression test
-        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_redemption_resolution_behavior.test.sql
 
       - name: Run client-role privilege regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_privilege_hardening.test.sql

@@ -9,7 +9,7 @@ const receiver = readFileSync(
 const config = readFileSync(new URL("../config.toml", import.meta.url), "utf8");
 
 test("receiver authenticates the raw request body before parsing JSON", () => {
-  const rawBytesRead = receiver.indexOf("rawBodyBytes = new Uint8Array(await req.arrayBuffer())");
+  const rawBytesRead = receiver.indexOf("readLimitedBody(req, MAX_BODY_BYTES)");
   const signatureCheck = receiver.indexOf("verifyRazorpayWebhookSignature(rawBodyBytes");
   const bodyDecode = receiver.indexOf('new TextDecoder("utf-8", { fatal: true }).decode(rawBodyBytes)');
   const jsonParse = receiver.indexOf("JSON.parse(rawBody)");
@@ -26,6 +26,8 @@ test("receiver bounds payload size and requires server-side secrets", () => {
   assert.match(receiver, /RAZORPAY_WEBHOOK_SECRET/);
   assert.match(receiver, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(receiver, /payload_too_large/);
+  assert.match(receiver, /totalBytes > maxBytes/);
+  assert.match(receiver, /reader\.cancel\(\)/);
 });
 
 test("receiver durably records receipts and acknowledges database errors with retryable status", () => {

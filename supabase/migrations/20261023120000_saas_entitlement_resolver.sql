@@ -43,7 +43,8 @@ BEGIN
   JOIN private.saas_plan_versions pv ON pv.id = s.plan_version_id
   JOIN private.saas_plans p ON p.id = pv.plan_id
   WHERE s.tenant_id = p_tenant_id
-  ORDER BY s.created_at DESC
+  ORDER BY CASE WHEN s.status IN ('trialing', 'active', 'past_due', 'paused') THEN 0 ELSE 1 END,
+           s.created_at DESC
   LIMIT 1;
 
   IF NOT FOUND THEN

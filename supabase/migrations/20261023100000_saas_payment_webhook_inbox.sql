@@ -3,7 +3,7 @@
 -- events idempotently and transactionally before marking them processed.
 CREATE TABLE private.saas_payment_webhook_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider text NOT NULL CHECK (provider = 'razorpay'),
+  provider text NOT NULL DEFAULT 'razorpay' CHECK (provider = 'razorpay'),
   provider_event_id text NOT NULL
     CHECK (length(btrim(provider_event_id)) BETWEEN 1 AND 255),
   event_type text NOT NULL

@@ -9,12 +9,14 @@ const receiver = readFileSync(
 const config = readFileSync(new URL("../config.toml", import.meta.url), "utf8");
 
 test("receiver authenticates the raw request body before parsing JSON", () => {
-  const rawBodyRead = receiver.indexOf("rawBody = await req.text()");
-  const signatureCheck = receiver.indexOf("verifyRazorpayWebhookSignature(rawBody");
+  const rawBytesRead = receiver.indexOf("rawBodyBytes = new Uint8Array(await req.arrayBuffer())");
+  const signatureCheck = receiver.indexOf("verifyRazorpayWebhookSignature(rawBodyBytes");
+  const bodyDecode = receiver.indexOf('new TextDecoder("utf-8", { fatal: true }).decode(rawBodyBytes)');
   const jsonParse = receiver.indexOf("JSON.parse(rawBody)");
-  assert.ok(rawBodyRead >= 0);
-  assert.ok(signatureCheck > rawBodyRead);
-  assert.ok(jsonParse > signatureCheck);
+  assert.ok(rawBytesRead >= 0);
+  assert.ok(signatureCheck > rawBytesRead);
+  assert.ok(bodyDecode > signatureCheck);
+  assert.ok(jsonParse > bodyDecode);
   assert.match(receiver, /x-razorpay-signature/);
   assert.match(receiver, /x-razorpay-event-id/);
 });

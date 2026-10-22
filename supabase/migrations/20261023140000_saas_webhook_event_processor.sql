@@ -140,14 +140,9 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
   END IF;
 
-  IF v_subscription.last_provider_event_created_at IS NOT NULL
-     AND (
-       v_event_time < v_subscription.last_provider_event_created_at
-       OR (
-         v_event_time = v_subscription.last_provider_event_created_at
-         AND v_event_type = 'subscription.charged'
-       )
-     ) THEN
+  IF v_event_type NOT IN ('subscription.charged', 'payment.failed')
+     AND v_subscription.last_provider_event_created_at IS NOT NULL
+     AND v_event_time < v_subscription.last_provider_event_created_at THEN
     UPDATE private.saas_payment_webhook_events
     SET status = 'processed', processing_result = 'stale',
         processed_at = now(), processing_started_at = NULL, last_error_code = NULL
@@ -165,14 +160,6 @@ BEGIN
   END IF;
 
   IF v_event_type = 'subscription.charged' THEN
-    IF v_subscription.status IN ('canceled', 'expired') THEN
-      UPDATE private.saas_payment_webhook_events
-      SET status = 'processed', processing_result = 'stale',
-          processed_at = now(), processing_started_at = NULL, last_error_code = NULL
-      WHERE id = p_event_id;
-      RETURN jsonb_build_object('ok', true, 'result', 'stale');
-    END IF;
-
     v_payment_entity := v_event_payload #> '{payload,payment,entity}';
     v_provider_payment_id := nullif(btrim(v_payment_entity->>'id'), '');
     v_payment_status := lower(coalesce(v_payment_entity->>'status', ''));
@@ -281,6 +268,16 @@ BEGIN
       RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
     END IF;
 
+    IF v_subscription.status IN ('canceled', 'expired')
+       OR (v_subscription.last_provider_event_created_at IS NOT NULL
+           AND v_event_time <= v_subscription.last_provider_event_created_at) THEN
+      UPDATE private.saas_payment_webhook_events
+      SET status = 'processed', processing_result = 'stale',
+          processed_at = now(), processing_started_at = NULL, last_error_code = NULL
+      WHERE id = p_event_id;
+      RETURN jsonb_build_object('ok', true, 'result', 'stale');
+    END IF;
+
     UPDATE private.saas_tenant_subscriptions
     SET status = 'active',
         current_period_start = v_period_start,
@@ -291,14 +288,6 @@ BEGIN
     WHERE id = v_subscription.id;
 
   ELSIF v_event_type = 'payment.failed' THEN
-    IF v_subscription.status IN ('canceled', 'expired') THEN
-      UPDATE private.saas_payment_webhook_events
-      SET status = 'processed', processing_result = 'stale',
-          processed_at = now(), processing_started_at = NULL, last_error_code = NULL
-      WHERE id = p_event_id;
-      RETURN jsonb_build_object('ok', true, 'result', 'stale');
-    END IF;
-
     v_provider_payment_id := nullif(btrim(v_payment_entity->>'id'), '');
     v_payment_currency := upper(coalesce(v_payment_entity->>'currency', ''));
     IF v_provider_payment_id IS NULL OR length(v_provider_payment_id) > 255
@@ -388,6 +377,16 @@ BEGIN
           processing_result = NULL, processed_at = NULL
       WHERE id = p_event_id;
       RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
+    END IF;
+
+    IF v_subscription.status IN ('canceled', 'expired')
+       OR (v_subscription.last_provider_event_created_at IS NOT NULL
+           AND v_event_time < v_subscription.last_provider_event_created_at) THEN
+      UPDATE private.saas_payment_webhook_events
+      SET status = 'processed', processing_result = 'stale',
+          processed_at = now(), processing_started_at = NULL, last_error_code = NULL
+      WHERE id = p_event_id;
+      RETURN jsonb_build_object('ok', true, 'result', 'stale');
     END IF;
 
     UPDATE private.saas_tenant_subscriptions

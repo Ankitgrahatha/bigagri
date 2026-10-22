@@ -15,7 +15,7 @@ test("one-time QR tokens stay in memory for retry instead of being persisted", (
 test("QR issuance retains a recovery warning when the one-time API response is incomplete", () => {
   assert.match(admin, /codes\.length!==count/);
   assert.match(admin, /codes\.every\(c=>c&&typeof c\.qr_id==="string"&&typeof c\.token==="string"&&c\.token\.length>=16/);
-  assert.match(admin, /complete\?\?"One-time QR export ready"/);
+  assert.match(admin, /const complete=pendingQrExport\.complete===true/);
   assert.match(admin, /Do not reissue; reconcile batch/);
   assert.match(admin, /renderQrExportNotice/);
   assert.match(admin, /missing tokens cannot be recovered/i);

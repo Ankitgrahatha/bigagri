@@ -1,0 +1,68 @@
+name: RewardLoop production deployment smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "app.js"
+      - "styles.css"
+      - "admin.html"
+      - "admin.js"
+      - "admin-settings.html"
+      - "admin-settings.js"
+      - "vercel.json"
+      - "sw.js"
+      - "manifest.webmanifest"
+      - ".github/workflows/rewardloop-production-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rewardloop-production-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Verify live Vercel routes and headers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wait for Vercel production alias to become ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 18); do
+            status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 10 https://bigagri.vercel.app/ || true)"
+            if [ "$status" = "200" ]; then
+              ready=1
+              echo "Production homepage returned HTTP 200."
+              break
+            fi
+            echo "Attempt $attempt: homepage HTTP ${status:-request-failed}; waiting 10 seconds."
+            sleep 10
+          done
+          test "$ready" = "1"
+
+      - name: Verify public app, admin, and settings routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          for route in / /admin.html /admin-settings.html; do
+            safe="$(printf '%s' "$route" | tr '/.' '__')"
+            code="$(curl --silent --show-error --location --max-time 20 --dump-header "$tmp/$safe.headers" --output "$tmp/$safe.body" --write-out '%{http_code}' "https://bigagri.vercel.app$route")"
+            test "$code" = "200"
+            grep -qi '^x-content-type-options: nosniff' "$tmp/$safe.headers"
+            grep -qi '^x-frame-options: DENY' "$tmp/$safe.headers"
+            grep -qi '^referrer-policy: strict-origin-when-cross-origin' "$tmp/$safe.headers"
+            grep -qi '^strict-transport-security: max-age=31536000; includeSubDomains' "$tmp/$safe.headers"
+            grep -qi '^permissions-policy: camera=(self), microphone=(), geolocation=(), payment=()' "$tmp/$safe.headers"
+            echo "PASS: $route returned HTTP 200 with required security headers"
+          done
+          grep -q 'Growta RewardLoop' "$tmp/__.body"
+          grep -q 'rewardloop-api' <(curl --silent --show-error --location --max-time 20 https://bigagri.vercel.app/admin.js) || true

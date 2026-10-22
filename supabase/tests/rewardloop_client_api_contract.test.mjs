@@ -6,7 +6,7 @@ const client = readFileSync(new URL("../../app.js", import.meta.url), "utf8");
 const api = readFileSync(new URL("../functions/rewardloop-api/index.ts", import.meta.url), "utf8");
 
 test("farmer onboarding sends fields accepted by the API", () => {
-  assert.match(client, /api\("profile",\s*\{\s*display_name:\s*displayName,\s*phone_e164:\s*phone,\s*preferred_locale:/);
+    assert.match(client, /api\("profile",\s*\{\s*tenant_slug:\s*TENANT_SLUG,\s*display_name:\s*displayName,\s*phone_e164:\s*phone,\s*preferred_locale:/);
   assert.match(api, /body\.display_name/);
   assert.match(api, /body\.phone_e164/);
   assert.match(api, /body\.preferred_locale/);
@@ -81,7 +81,9 @@ test("unexpected API errors are not returned verbatim to clients", () => {
 });
 
 test("tenant scope is selected server-side and never accepted as an API authority field", () => {
-  assert.match(api, /const TENANT_SLUG = "growta-rewardloop"/);
-  assert.match(api, /\.eq\("slug", TENANT_SLUG\)/);
+  assert.match(api, /const requestedTenantSlug = typeof body\.tenant_slug === "string" \? body\.tenant_slug\.trim\(\) : TENANT_SLUG/);
+  assert.match(api, /tenant_slug_invalid/);
+  assert.match(api, /\.eq\("slug", requestedTenantSlug\)/);
+  assert.match(api, /tenant\.public_catalog_enabled !== true/);
   assert.doesNotMatch(api, /\.eq\("tenant_id",\s*body\.tenant_id\)/);
 });

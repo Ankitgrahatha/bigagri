@@ -3,11 +3,23 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 // Publishable key is intended for browser use; row-level security protects data.
 const SUPABASE_URL = "https://guhhuqxrobhuumwrypnc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_6dr2KACqmGBM2AWZS6NTDw_1Kf3e8ru";
-const TENANT_SLUG = "growta-rewardloop";
+const DEFAULT_TENANT_SLUG = "growta-rewardloop";
+const requestedTenantSlug = new URLSearchParams(window.location.search).get("tenant")?.trim() || DEFAULT_TENANT_SLUG;
+// Slugs are public routing identifiers, never authorization. The server and RLS still
+// require an active tenant with public_catalog_enabled before exposing catalog/profile data.
+const TENANT_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(requestedTenantSlug)
+  ? requestedTenantSlug
+  : DEFAULT_TENANT_SLUG;
 const API_FUNCTION = "rewardloop-api";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
+function storefrontRedirectUrl(extraParams = {}) {
+  const url = new URL("/", window.location.origin);
+  if (TENANT_SLUG !== DEFAULT_TENANT_SLUG) url.searchParams.set("tenant", TENANT_SLUG);
+  for (const [key, value] of Object.entries(extraParams)) url.searchParams.set(key, value);
+  return url.toString();
+}
 
 const i18n = {
   hi: {
@@ -72,9 +84,9 @@ async function api(action, payload = {}) {
 }
 async function getTenant() {
   if (state.tenant) return state.tenant;
-  const { data, error } = await supabase.from("tenants").select("id,name,slug,status,default_locale").eq("slug", TENANT_SLUG).maybeSingle();
+  const { data, error } = await supabase.from("tenants").select("id,name,slug,status,default_locale,public_catalog_enabled").eq("slug", TENANT_SLUG).maybeSingle();
   if (error) throw error;
-  if (!data || data.status !== "active") throw new Error("tenant_unavailable");
+  if (!data || data.status !== "active" || data.public_catalog_enabled !== true) throw new Error("tenant_unavailable");
   state.tenant = data;
   return data;
 }
@@ -188,7 +200,7 @@ function renderAuth() {
     if (!email) { toast(t("email")+" required", "error"); emailInput?.focus(); return; }
     resend.disabled = true;
     try {
-      const { error } = await supabase.auth.resend({ type:"signup", email, options:{ emailRedirectTo:window.location.origin } });
+      const { error } = await supabase.auth.resend({ type:"signup", email, options:{ emailRedirectTo:storefrontRedirectUrl() } });
       if (error) throw error;
       const message = document.getElementById("auth-message");
       if (message) message.textContent = t("confirmationResent");
@@ -209,7 +221,7 @@ async function handleAuth(event) {
   try {
     if (state.authMode === "recover") {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/?auth=reset`
+        redirectTo: storefrontRedirectUrl({ auth: "reset" })
       });
       if (error) throw error;
       const message = document.getElementById("auth-message");
@@ -230,11 +242,11 @@ async function handleAuth(event) {
       const displayName = String(fd.get("name") || "").trim();
       const phone = String(fd.get("phone") || "").trim();
       if (phone && !/^\+[1-9]\d{7,14}$/.test(phone)) throw new Error("phone_must_be_e164");
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin, data: { display_name: displayName, preferred_locale: state.lang } } });
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: storefrontRedirectUrl(), data: { display_name: displayName, preferred_locale: state.lang } } });
       if (error) throw error;
       if (data.session) {
         state.session = data.session;
-        const profile = await api("profile", { display_name: displayName, phone_e164: phone, preferred_locale: state.lang === "hi" ? "hi-IN" : "en-IN" });
+        const profile = await api("profile", { tenant_slug: TENANT_SLUG, display_name: displayName, phone_e164: phone, preferred_locale: state.lang === "hi" ? "hi-IN" : "en-IN" });
         if (!profile.ok) throw new Error(profile.error || "profile_create_failed");
         state.profile = profile.profile;
         toast(t("signupSuccess"), "success");
@@ -271,7 +283,7 @@ function renderProfileSetup() {
   document.getElementById("profile-form").addEventListener("submit", async e => {
     e.preventDefault(); const fd = new FormData(e.currentTarget); const name = String(fd.get("name") || "").trim(); const phone = String(fd.get("phone") || "").trim(); const locale = String(fd.get("locale") || "hi-IN");
     try {
-      const result = await api("profile", { display_name: name, phone_e164: phone, preferred_locale: locale });
+      const result = await api("profile", { tenant_slug: TENANT_SLUG, display_name: name, phone_e164: phone, preferred_locale: locale });
       if (!result.ok) throw new Error(result.error || "profile_create_failed");
       state.profile = result.profile; state.view = "home"; toast(t("profileSaved"), "success"); await loadDashboard();
     } catch (err) { toast(friendlyError(err), "error"); }

@@ -245,8 +245,15 @@ BEGIN
     FROM private.saas_payment_attempts
     WHERE provider = 'razorpay' AND provider_payment_id = v_provider_payment_id;
 
-    IF NOT FOUND
-       OR v_payment_attempt.tenant_id <> v_subscription.tenant_id
+    IF NOT FOUND THEN
+      v_failure_code := 'payment_id_conflict';
+      UPDATE private.saas_payment_webhook_events
+      SET status = 'failed', processing_started_at = NULL, last_error_code = v_failure_code,
+          processing_result = NULL, processed_at = NULL
+      WHERE id = p_event_id;
+      RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
+    END IF;
+    IF v_payment_attempt.tenant_id <> v_subscription.tenant_id
        OR v_payment_attempt.subscription_id IS DISTINCT FROM v_subscription.id
        OR v_payment_attempt.amount_minor <> v_payment_amount
        OR v_payment_attempt.currency <> v_payment_currency
@@ -326,8 +333,15 @@ BEGIN
     FROM private.saas_payment_attempts
     WHERE provider = 'razorpay' AND provider_payment_id = v_provider_payment_id;
 
-    IF NOT FOUND
-       OR v_payment_attempt.tenant_id <> v_subscription.tenant_id
+    IF NOT FOUND THEN
+      v_failure_code := 'payment_id_conflict';
+      UPDATE private.saas_payment_webhook_events
+      SET status = 'failed', processing_started_at = NULL, last_error_code = v_failure_code,
+          processing_result = NULL, processed_at = NULL
+      WHERE id = p_event_id;
+      RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
+    END IF;
+    IF v_payment_attempt.tenant_id <> v_subscription.tenant_id
        OR v_payment_attempt.subscription_id IS DISTINCT FROM v_subscription.id
        OR v_payment_attempt.amount_minor <> v_payment_amount
        OR v_payment_attempt.currency <> v_payment_currency THEN

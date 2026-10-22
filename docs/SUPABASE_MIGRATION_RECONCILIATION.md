@@ -21,14 +21,14 @@ A read-only query captured deterministic SHA-256 fingerprints from the live proj
 | Public columns | 170 | `557cf04098d8519f16d8cc1a9d145088734cb6ef9cefce7bf3dcc467098719a2` |
 | Public constraints | 92 | `33c1dc63ba89a52e68e4d54ea54e2ee971269dfcd3821b339fcdbc499e09ebf2` |
 | Public enum labels | 28 | `e42d1fab480c15e989b9c1ed6bb57176c1c2f3bf3440817df91e39bbe59a40a4` |
-| Public/private functions (definition, identity args, security config and ACL) | 16 | `22651a34d36fbdfcb05395ed57a02f79ffac0a0050ab974fd09709fcf2f746f3` |
+| Public/private functions (definition, identity args, security config and ACL) | 16 | `6a6bd2b7bc3372808898c2a98f5d0c64ce16b5812d95713efbd82b13d8fdb42a` |
 | Public indexes | 60 | `9d67f1e13fcaca28de634af6810f33d0b478806b62b6c49b69d4a2469a7e8a1d` |
 | Public RLS policies | 14 | `55e32a204770348638ee3366e69ec6e77b590dfcaedd97a46e31cbe12e1b65dd` |
 | Public/private RLS table flags | 15 | `ea231962c74cee2034e24221b023b7bcf79a01a0aa32550fc22eb6c413fd752a` |
 | Public table ACLs | 15 | `64a3c59af6a5583a528ec331353b4628ec978fa080b2a5d6189204b54e5d8d59` |
 | Public/private non-internal triggers | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 
-The isolated PostgreSQL workflow now applies the baseline and the 13 historical timestamp markers, runs `rewardloop_live_schema_parity.test.sql`, and only then applies later feature/security migrations. The fingerprint test compares counts and signatures for columns, constraints, enum labels, function definitions/configuration and normalized ACLs, indexes, policies, RLS flags, table ACLs, and triggers. Default ACLs are checked behaviorally by creating and dropping disposable probe objects after the fingerprints are checked; this avoids false mismatches from PostgreSQL's textual ACL ordering while still proving the expected effective grants.
+The isolated PostgreSQL workflow now applies the baseline and the 13 historical timestamp markers, runs `rewardloop_live_schema_parity.test.sql`, and only then applies later feature/security migrations. The fingerprint test compares counts and signatures for columns, constraints, enum labels, function definitions and security configuration, indexes, policies, RLS flags, table ACLs, and triggers. Default ACLs are checked behaviorally by creating and dropping disposable probe objects after the fingerprints are checked; this avoids false mismatches from PostgreSQL's textual ACL ordering while still proving the expected effective grants.
 
 This is a stricter gate than comparing object names and counts, but it is still a fingerprint of the listed catalog surfaces—not a physical backup or proof of runtime behavior. The workflow must pass before considering the baseline equivalent. Do not run history repair or push migrations solely because this file contains the expected hashes.
 

@@ -36,3 +36,17 @@ test("README does not claim an unverified current production release", () => {
 test("quality gate runs the production release gate contract", () => {
   assert.match(workflow, /rewardloop_production_release_gate\.test\.mjs/);
 });
+
+test("canonical API rejects non-JSON, malformed, non-object, and oversized request bodies", () => {
+  const api = read("supabase/functions/rewardloop-api/index.ts");
+  assert.match(api, /MAX_REQUEST_BODY_BYTES = 64 \* 1024/);
+  assert.match(api, /content_type_required/);
+  assert.match(api, /body_too_large/);
+  assert.match(api, /invalid_json/);
+  assert.match(api, /req\.headers\.get\("Content-Length"\)/);
+  assert.match(api, /req\.body\.getReader\(\)/);
+  assert.match(api, /JSON\.parse\(new TextDecoder\(\)\.decode\(bytes\)\)/);
+  assert.match(api, /const parsedBody = await readJsonBody\(req\)/);
+  assert.match(api, /parsedBody\.error === "body_too_large" \? 413/);
+  assert.match(api, /parsedBody\.error === "content_type_required" \? 415/);
+});

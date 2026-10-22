@@ -46,7 +46,10 @@ BEGIN
     RAISE EXCEPTION 'published SaaS plan versions are immutable'
       USING ERRCODE = '55000';
   END IF;
-  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
 END
 $function$;
 

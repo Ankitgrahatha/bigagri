@@ -35,7 +35,7 @@ Never commit secret values, put them in the PWA, or log webhook bodies/signature
 - The unique provider/event ID prevents duplicate delivery from creating duplicate inbox rows.
 - The processor locks inbox and subscription rows, checks provider subscription and plan IDs, exact amount/currency, captured payment status, and billing period before activating a subscription.
 - Failed payments move a non-terminal subscription to `past_due`; the entitlement resolver fails closed for `past_due`, expired periods, unpublished versions, and missing subscriptions. Grace-period behavior is not implemented.
-- Out-of-order events are marked stale; unsupported event types are marked ignored. Invalid events retry up to eight attempts, after which they require operator review.
+- Out-of-order events are marked stale; unsupported event types are marked ignored. Invalid events retry up to eight attempts with a bounded backoff of up to five minutes, after which they require operator review. The batch response includes an `exhausted` count; alert if it is non-zero.
 - The batch endpoint is not scheduled automatically by this repository change. A scheduler and alerting are operational prerequisites.
 - Published plan versions are immutable. Publish a new version instead of changing prices/entitlements in place.
 

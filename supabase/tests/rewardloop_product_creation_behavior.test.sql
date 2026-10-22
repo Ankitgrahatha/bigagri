@@ -28,7 +28,7 @@ BEGIN
   VALUES
     (v_tenant_a,v_admin_a,'brand_admin','active'),
     (v_tenant_b,v_admin_b,'super_admin','active'),
-    (v_tenant_a,v_farmer,'support','active');
+    (v_tenant_a,v_farmer,'support_agent','active');
 
   v_created := public.rewardloop_create_product_internal(
     v_admin_a,v_tenant_a,' test-sku-001 ','Hybrid Tomato Seed','10 g'

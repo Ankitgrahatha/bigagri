@@ -8,7 +8,6 @@ on:
       - "admin.js"
       - "admin-settings.js"
       - "vercel.json"
-      - "vercel.json"
       - "supabase/**"
       - ".github/workflows/**"
   push:
@@ -17,6 +16,7 @@ on:
       - "app.js"
       - "admin.js"
       - "admin-settings.js"
+      - "vercel.json"
       - "supabase/**"
       - ".github/workflows/**"
   workflow_dispatch:

@@ -16,6 +16,7 @@ Status: **MVP foundation exists; production launch is not yet approved.**
 The following changes are merged in Git and covered by successful GitHub Actions runs on `main`. They are **not all deployed to the connected production Supabase project**.
 
 - Claim idempotency and actor+QR-scoped replay tests, including conflict responses that do not reveal another claim.
+- Claim and redemption request keys are now explicitly bound to the owning actor; redemption replay also checks the requested reward, and conflicting key reuse returns a generic error without a second debit or stock decrement.
 - Parallel PostgreSQL claim and redemption contention tests, including one-credit, one-reservation, balance serialization, and stock/accounting assertions.
 - Points ledger immutability: update, delete and truncate are rejected in the disposable database.
 - Least-privilege grants on reward-bearing tables and internal RPC execution.
@@ -25,14 +26,16 @@ The following changes are merged in Git and covered by successful GitHub Actions
 - Redemption refund enum fix: cancellation/rejection compensation uses the existing `redeem_release` enum value; the isolated behavior test proves refund/stock restoration occurs once and fulfillment does not refund.
 - Redemption resolution explicitly rejects a NULL status at the database boundary; isolated SQL regression test passes.
 - Invalid QR token guesses are now rate-limited to 10 attempts per actor in a rolling 15-minute window. The private attempt table stores actor/request/time metadata only, never the submitted token. The migration is based on the latest budget-aware claim function so it preserves campaign liability enforcement.
+- Frontend release checks validate JavaScript entry points, service-worker syntax, HTML-referenced local assets, PWA manifest JSON, and icon existence.
+- Admin email settings now clearly state that they save preferences only; SMTP passwords are cleared after submission and are not persisted to the application settings table.
 - The deployed admin settings function is now tracked in Git with tests for caller authentication, tenant admin authorization, field allowlisting and SMTP password non-persistence.
 - Six legacy Edge Function sources are archived outside the canonical deployment folder; none has been disabled.
 
 Current CI evidence on main:
-- Latest merged main commit for invalid-QR rate limiting: `948e6f5bf541e77a70ea92ce5319d14f46055a51`.
-- GitHub Actions quality gate, safe smoke tests, and legacy-route guard passed on that commit; isolated PostgreSQL regression also passed, including the full migration chain, campaign-budget exhaustion, invalid-token rate limit, claim/redeem concurrency, refunds, and authorization tests.
-- The first attempt at the rate-limit migration failed the campaign-budget regression because it would have replaced the budget-aware claim function with an older definition. That version was not merged. The migration was rebuilt from the latest budget-aware function, then the clean-database suite passed.
-- Production smoke tests passed on the preceding merged main commit `00306b26e7cb87f10889a3e6f555870f597bd82c`; this does not prove that the latest code or pending SQL migrations are live.
+- Latest verified transaction/security suite before the newest actor-replay merge passed on commit `948e6f5bf541e77a70ea92ce5319d14f46055a51`; the full clean PostgreSQL migration chain and behavioral tests passed.
+- The actor-replay merge (PR #51) adds owner-bound claim and redemption replay migrations and tests. Its quality gate, smoke tests, legacy-route guard, and isolated PostgreSQL suite passed on the pre-merge head `7c5e0abd29c4f0bea03ab8d5076ed5e9111efbc0`.
+- The frontend/PWA asset suite passed in PR #44 and the admin email-settings honesty/security suite passed in PR #48 before merge.
+- Production route/header smoke tests passed on commit `00306b26e7cb87f10889a3e6f555870f597bd82c` (public app, admin page, settings page); this is a GET-only smoke test and does not prove the newest commit or pending SQL migrations are live.
 - These results prove the tested repository/CI path only, not that pending SQL has been applied to production.
 
 ## Production blockers still open
@@ -42,7 +45,7 @@ Current CI evidence on main:
 3. **Auth email delivery and leaked-password protection** remain unverified/disabled as noted below.
 4. **Legacy Edge Functions remain active.** The latest 24-hour function-log query showed traffic to `rewardloop-api` but no logged requests to the six legacy routes. That is only a 24-hour observation window—not sufficient evidence to retire routes. Keep them active until client references and a longer observation window are checked.
 5. **No browser-level end-to-end run** has yet proved signup → confirmation → profile → claim → balance → redemption → cancellation/fulfillment on the deployed production stack.
-6. **Vercel deployment quota previously blocked new production deploys.** Verify current project/deployment status before claiming the latest Git commit is live.
+6. **Latest deployment provenance remains unverified.** A route/header smoke run passed on commit `00306b26e7cb87f10889a3e6f555870f597bd82c`, but the newest merged commits require a fresh production smoke check before claiming they are live. Earlier Vercel deployment-quota failures should not be treated as resolved without current deployment evidence.
 
 ## Implemented in repository / database
 

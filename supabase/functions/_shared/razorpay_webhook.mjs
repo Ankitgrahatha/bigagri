@@ -28,7 +28,9 @@ function constantTimeEqual(left, right) {
  * Pass the unmodified request body text and the configured webhook secret.
  */
 export async function verifyRazorpayWebhookSignature(rawBody, signatureHeader, webhookSecret) {
-  if (!rawBody || !webhookSecret || !signatureHeader) return false;
+  if (rawBody == null || !webhookSecret || !signatureHeader) return false;
+  const bodyBytes = rawBody instanceof Uint8Array ? rawBody : encoder.encode(rawBody);
+  if (bodyBytes.byteLength === 0) return false;
   const supplied = decodeHex(signatureHeader.trim());
   if (!supplied) return false;
 
@@ -41,7 +43,7 @@ export async function verifyRazorpayWebhookSignature(rawBody, signatureHeader, w
       ["sign"],
     );
     const expected = new Uint8Array(
-      await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody)),
+      await crypto.subtle.sign("HMAC", key, bodyBytes),
     );
     return constantTimeEqual(expected, supplied);
   } catch {

@@ -38,3 +38,12 @@ test("CSV downloads are blocked if the server cannot audit the export request", 
   assert.match(partner, /catch\(error\)\{toast\("Export was not started because audit logging failed:/);
   assert.match(redemption, /catch\(error\)\{toast\("Export was not started because audit logging failed:/);
 });
+
+test("both admin CSV paths neutralize spreadsheet formula injection", () => {
+  assert.match(admin, /function csvCell\(value\)/);
+  assert.match(admin, /\[\\u0000-\\u0020\]\*\[=\+\\-@\]/);
+  const standardCsv = admin.slice(admin.indexOf("function downloadCsv"), admin.indexOf("function qrExportCsv"));
+  const qrCsv = admin.slice(admin.indexOf("function qrExportCsv"), admin.indexOf("function downloadPendingQrExport"));
+  assert.match(standardCsv, /row\.map\(csvCell\)/);
+  assert.match(qrCsv, /row\.map\(csvCell\)/);
+});

@@ -17,6 +17,7 @@ test("QR issuance validates token payload completeness and warns against reissui
   assert.ok(admin.includes('if(!complete)toast("QR export response is incomplete or invalid'));
   assert.ok(admin.includes("renderQrExportNotice"));
   assert.ok(admin.includes("Do not reissue; reconcile batch"));
+  assert.ok(admin.includes("Secure or explicitly clear the previous one-time QR export before issuing another batch."));
   assert.ok(admin.includes("missing tokens cannot be recovered"));
 });
 

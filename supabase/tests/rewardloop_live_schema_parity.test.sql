@@ -101,6 +101,40 @@ BEGIN
         v_expected.category,v_expected.object_count,v_actual.n,v_expected.fingerprint,v_actual.fingerprint;
     END IF;
   END LOOP;
+  -- Compare effective function execution grants at the historical baseline. The private schema
+  -- itself must remain inaccessible to client roles; later hardening migrations narrow function ACLs.
+  IF has_schema_privilege('anon','private','USAGE')
+     OR has_schema_privilege('authenticated','private','USAGE') THEN
+    RAISE EXCEPTION 'private schema unexpectedly grants client USAGE';
+  END IF;
+
+  IF has_function_privilege('anon','private.claim_qr(uuid,text,uuid,text,text)','EXECUTE')
+     OR has_function_privilege('authenticated','private.claim_qr(uuid,text,uuid,text,text)','EXECUTE')
+     OR NOT has_function_privilege('service_role','private.claim_qr(uuid,text,uuid,text,text)','EXECUTE')
+     OR NOT has_function_privilege('anon','private.create_rewardloop_campaign(uuid,uuid,text,timestamptz,timestamptz,bigint)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','private.create_rewardloop_campaign(uuid,uuid,text,timestamptz,timestamptz,bigint)','EXECUTE')
+     OR NOT has_function_privilege('service_role','private.create_rewardloop_campaign(uuid,uuid,text,timestamptz,timestamptz,bigint)','EXECUTE')
+     OR has_function_privilege('anon','private.issue_qr_batch(uuid,uuid,uuid,uuid,integer,integer,text)','EXECUTE')
+     OR has_function_privilege('authenticated','private.issue_qr_batch(uuid,uuid,uuid,uuid,integer,integer,text)','EXECUTE')
+     OR NOT has_function_privilege('service_role','private.issue_qr_batch(uuid,uuid,uuid,uuid,integer,integer,text)','EXECUTE')
+     OR has_function_privilege('anon','private.redeem_reward(uuid,uuid,text)','EXECUTE')
+     OR has_function_privilege('authenticated','private.redeem_reward(uuid,uuid,text)','EXECUTE')
+     OR NOT has_function_privilege('service_role','private.redeem_reward(uuid,uuid,text)','EXECUTE')
+     OR NOT has_function_privilege('anon','private.resolve_redemption(uuid,uuid,uuid,text,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','private.resolve_redemption(uuid,uuid,uuid,text,text)','EXECUTE')
+     OR NOT has_function_privilege('service_role','private.resolve_redemption(uuid,uuid,uuid,text,text)','EXECUTE')
+     OR has_function_privilege('anon','private.revoke_qr_batch(uuid,uuid,uuid,text)','EXECUTE')
+     OR has_function_privilege('authenticated','private.revoke_qr_batch(uuid,uuid,uuid,text)','EXECUTE')
+     OR NOT has_function_privilege('service_role','private.revoke_qr_batch(uuid,uuid,uuid,text)','EXECUTE')
+     OR NOT has_function_privilege('anon','private.set_rewardloop_campaign_status(uuid,uuid,uuid,text,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','private.set_rewardloop_campaign_status(uuid,uuid,uuid,text,text)','EXECUTE')
+     OR NOT has_function_privilege('service_role','private.set_rewardloop_campaign_status(uuid,uuid,uuid,text,text)','EXECUTE')
+     OR has_function_privilege('anon','private.verify_partner(uuid,uuid,uuid,text,text)','EXECUTE')
+     OR has_function_privilege('authenticated','private.verify_partner(uuid,uuid,uuid,text,text)','EXECUTE')
+     OR NOT has_function_privilege('service_role','private.verify_partner(uuid,uuid,uuid,text,text)','EXECUTE') THEN
+    RAISE EXCEPTION 'effective private function grants differ from the captured live baseline';
+  END IF;
+
   -- Default ACLs are compared behaviorally because PostgreSQL versions may serialize ACL arrays differently.
   CREATE TABLE public.rewardloop_schema_parity_acl_probe (id integer);
   CREATE SEQUENCE public.rewardloop_schema_parity_sequence_probe;

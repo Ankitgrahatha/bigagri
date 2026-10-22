@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
-import { verifyRazorpayWebhookSignature } from "../functions/_shared/razorpay_webhook.ts";
+import { verifyRazorpayWebhookSignature } from "../functions/_shared/razorpay_webhook.mjs";
 
 const secret = "test-webhook-secret";
 const body = '{"event":"subscription.charged","payload":{"subscription":{"entity":{"id":"sub_test"}}}}';

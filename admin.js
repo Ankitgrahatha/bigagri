@@ -167,7 +167,8 @@ document.getElementById("issue").addEventListener("submit",async e=>{
   try{
     const r=await call("issue_qr_batch",{campaign_id:String(f.get("campaign")),product_id:String(f.get("product")),count,points_value,entitlement_role:String(f.get("role"))});
     const codes=Array.isArray(r.codes)?r.codes:[];
-    const complete=codes.length===count&&codes.every(c=>c&&typeof c.qr_id==="string"&&typeof c.token==="string"&&c.token.length>=16&&typeof c.qr_payload==="string"&&c.qr_payload.length>0);\n    pendingQrExport={batch_id:String(r.batch_id||"unknown"),tenant_slug:selectedTenantSlug,expected_count:count,codes,complete};
+    const complete=codes.length===count&&codes.every(c=>c&&typeof c.qr_id==="string"&&typeof c.token==="string"&&c.token.length>=16&&typeof c.qr_payload==="string"&&c.qr_payload.length>0);
+    pendingQrExport={batch_id:String(r.batch_id||"unknown"),tenant_slug:selectedTenantSlug,expected_count:count,codes,complete};
     if(!r.batch_id||!codes.length){toast("Batch response did not include recoverable QR tokens. Do not issue a replacement batch; reconcile batch "+String(r.batch_id||"unknown")+" with an administrator.",true);await refresh();return;}
     downloadPendingQrExport();
     if(!complete)toast("QR export response is incomplete or invalid ("+codes.length+" of "+count+" codes). Do not reissue; reconcile batch "+r.batch_id+".",true);

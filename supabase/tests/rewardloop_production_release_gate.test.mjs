@@ -41,6 +41,8 @@ test("canonical API rejects non-JSON, malformed, non-object, and oversized reque
   const api = read("supabase/functions/rewardloop-api/index.ts");
   assert.match(api, /MAX_REQUEST_BODY_BYTES = 64 \* 1024/);
   assert.match(api, /content_type_required/);
+  assert.match(api, /!\/^application\\\/json\(\?:\\s\*;\|\$\)\/i\.test\(contentType\)/);
+  assert.match(api, /!\/^\\d\+\$\/\.test\(declaredLength\)/);
   assert.match(api, /body_too_large/);
   assert.match(api, /invalid_json/);
   assert.match(api, /req\.headers\.get\("Content-Length"\)/);

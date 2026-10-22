@@ -36,3 +36,11 @@ test("webhook inbox denies client roles and grants only the service role", () =>
   assert.match(migration, /GRANT ALL PRIVILEGES ON TABLE private\.saas_payment_webhook_events TO service_role/i);
   assert.doesNotMatch(migration, /CREATE POLICY/i);
 });
+
+test("webhook receipt RPC is idempotent and service-role-only", () => {
+  assert.match(migration, /ON CONFLICT \(provider, provider_event_id\) DO NOTHING/i);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION private\.record_saas_payment_webhook_event/i);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.record_saas_payment_webhook_event_internal/i);
+  assert.match(migration, /REVOKE ALL PRIVILEGES ON FUNCTION public\.record_saas_payment_webhook_event_internal\(text,text,jsonb\)\s+FROM PUBLIC, anon, authenticated/i);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.record_saas_payment_webhook_event_internal\(text,text,jsonb\)\s+TO service_role/i);
+});

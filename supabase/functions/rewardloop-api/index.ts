@@ -28,6 +28,70 @@ function respond(status: number, payload: Record<string, unknown>, origin?: stri
   return new Response(JSON.stringify(payload), { status, headers });
 }
 
+type RedisLimitResult = { allowed: boolean; retryAfterSeconds?: number; configured: boolean };
+
+// Optional defence-in-depth burst limiting. Database constraints and the existing
+// invalid-token counter remain authoritative; this cache never controls balances,
+// stock, tenant membership, permissions, or claim/redemption idempotency.
+async function checkRedisRateLimit(
+  action: string,
+  actorId: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<RedisLimitResult> {
+  const rawUrl = Deno.env.get("UPSTASH_REDIS_REST_URL") ?? "";
+  const token = Deno.env.get("UPSTASH_REDIS_REST_TOKEN") ?? "";
+  if (!rawUrl || !token) return { allowed: true, configured: false };
+
+  let endpoint: URL;
+  try {
+    endpoint = new URL(rawUrl);
+    if (endpoint.protocol !== "https:" || !endpoint.hostname.endsWith(".upstash.io")) {
+      return { allowed: true, configured: false };
+    }
+  } catch {
+    return { allowed: true, configured: false };
+  }
+
+  const key = `rewardloop:v1:${TENANT_SLUG}:${action}:${actorId}`;
+  const script = [
+    "local n = redis.call('INCR', KEYS[1])",
+    "if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end",
+    "local ttl = redis.call('TTL', KEYS[1])",
+    "return {n, ttl}",
+  ].join("\n");
+
+  try {
+    const response = await fetch(endpoint.toString(), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(["EVAL", script, "1", key, String(windowSeconds)]),
+      signal: AbortSignal.timeout(1200),
+    });
+    if (!response.ok) throw new Error("Redis request failed");
+    const payload = await response.json();
+    const result = payload?.result;
+    const count = Array.isArray(result) ? Number(result[0]) : NaN;
+    const ttl = Array.isArray(result) ? Number(result[1]) : windowSeconds;
+    if (!Number.isSafeInteger(count) || count < 1) throw new Error("Redis response invalid");
+    if (count > limit) {
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.max(1, Number.isFinite(ttl) ? ttl : windowSeconds),
+        configured: true,
+      };
+    }
+    return { allowed: true, configured: true };
+  } catch {
+    // Fail open to existing database-level protections when Redis is unavailable.
+    // Never log the token, URL, actor identifier, or raw request payload.
+    return { allowed: true, configured: true };
+  }
+}
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("Origin");
   const originAllowed = !origin || ALLOWED_ORIGINS.has(origin);
@@ -58,6 +122,36 @@ Deno.serve(async (req: Request) => {
     });
     const body = await req.json().catch(() => ({}));
     const action = typeof body.action === "string" ? body.action : "";
+
+    const ratePolicy: Record<string, { limit: number; windowSeconds: number }> = {
+      profile: { limit: 30, windowSeconds: 60 },
+      claim: { limit: 30, windowSeconds: 60 },
+      redeem: { limit: 15, windowSeconds: 60 },
+      admin_dashboard: { limit: 60, windowSeconds: 60 },
+      verify_partner: { limit: 30, windowSeconds: 60 },
+      issue_qr_batch: { limit: 10, windowSeconds: 60 },
+      revoke_qr_batch: { limit: 10, windowSeconds: 60 },
+      resolve_redemption: { limit: 30, windowSeconds: 60 },
+      set_campaign_status: { limit: 20, windowSeconds: 60 },
+      create_campaign: { limit: 10, windowSeconds: 60 },
+      admin_record_export: { limit: 10, windowSeconds: 60 },
+      admin_audit_logs: { limit: 30, windowSeconds: 60 },
+      admin_tenants: { limit: 30, windowSeconds: 60 },
+      set_point_value: { limit: 10, windowSeconds: 60 },
+      create_product: { limit: 20, windowSeconds: 60 },
+      update_product: { limit: 30, windowSeconds: 60 },
+      set_product_status: { limit: 20, windowSeconds: 60 },
+    };
+    const policy = ratePolicy[action];
+    if (policy) {
+      const rate = await checkRedisRateLimit(action, user.id, policy.limit, policy.windowSeconds);
+      if (!rate.allowed) {
+        const headers = new Headers(corsHeaders);
+        headers.set("Retry-After", String(rate.retryAfterSeconds ?? policy.windowSeconds));
+        if (origin && ALLOWED_ORIGINS.has(origin)) headers.set("Access-Control-Allow-Origin", origin);
+        return new Response(JSON.stringify({ ok: false, error: "rate_limited" }), { status: 429, headers });
+      }
+    }
 
     // List only active tenants for which this authenticated user has an active
     // tenant-admin membership. Client-provided tenant IDs/slugs never grant access.

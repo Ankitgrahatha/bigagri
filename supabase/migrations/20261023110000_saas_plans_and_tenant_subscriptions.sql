@@ -92,6 +92,8 @@ CREATE TABLE private.saas_tenant_subscriptions (
   trial_end timestamptz,
   cancel_at_period_end boolean NOT NULL DEFAULT false,
   canceled_at timestamptz,
+  last_provider_event_created_at timestamptz,
+  last_provider_event_id text CHECK (last_provider_event_id IS NULL OR length(btrim(last_provider_event_id)) BETWEEN 1 AND 255),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT saas_subscription_period_order_check

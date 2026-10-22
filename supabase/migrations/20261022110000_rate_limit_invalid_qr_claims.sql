@@ -13,7 +13,6 @@ CREATE INDEX IF NOT EXISTS claim_failed_attempts_actor_time_idx
 
 ALTER TABLE private.claim_failed_attempts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE private.claim_failed_attempts FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL PRIVILEGES ON SEQUENCE private.claim_failed_attempts_id_seq FROM PUBLIC, anon, authenticated, service_role;
 
 -- Bind a tenant-scoped claim request ID to both its owning actor and QR resource.
 -- A tenant/request key cannot be replayed across actors or across different QRs.

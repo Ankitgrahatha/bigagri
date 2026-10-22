@@ -37,6 +37,11 @@ BEGIN
      AND p.user_id=p_actor_user_id
    LIMIT 1;
   IF FOUND THEN
+    -- A key is bound to both the actor and the requested reward. Reusing the
+    -- same key for a different reward must not silently replay the prior one.
+    IF v_existing.reward_id <> p_reward_id THEN
+      RETURN jsonb_build_object('ok',false,'error','request_key_conflict','replayed',false);
+    END IF;
     RETURN jsonb_build_object(
       'ok',v_existing.status NOT IN ('cancelled','rejected'),
       'redemption_id',v_existing.id,'status',v_existing.status,'replayed',true

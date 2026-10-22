@@ -1,6 +1,6 @@
 # Growta RewardLoop
 
-Mobile-first, Hindi-first rewards PWA for farmers and agricultural partners. This repository is the single source of truth for the RewardLoop app deployed through the Vercel project `bigagri`.
+Mobile-first, Hindi-first rewards PWA for farmers and agricultural partners. This repository is the single source of truth for the RewardLoop app intended to be deployed through the Vercel project `bigagri`.
 
 ## Architecture
 
@@ -30,14 +30,17 @@ Mobile-first, Hindi-first rewards PWA for farmers and agricultural partners. Thi
 - `app.js` — UI, Supabase Auth and data integration.
 - `manifest.webmanifest`, `sw.js` — PWA metadata and static shell caching.
 - `supabase/functions/rewardloop-api/index.ts` — versioned Edge Function source.
-- `docs/PRODUCTION_NOTES.md` — production configuration and release gates.
+- `docs/PRODUCTION_NOTES.md` — production configuration notes.
 - `docs/ADMIN_SETUP.md` — secure first-admin bootstrap instructions.
+- `docs/PRODUCTION_RELEASE_GATE.md` — mandatory release, migration reconciliation, security and recovery gates.
 
 ## Deployment
 
-Vercel project: `bigagri`; repository: `Ankitgrahatha/bigagri`; production branch: `main`. The Vercel deployment history has confirmed successful production deployments from recent commits on `main`.
+Vercel project: `bigagri`; repository: `Ankitgrahatha/bigagri`; intended production branch: `main`.
 
-Vercel settings should use **Framework Preset: Other**, root directory `.`, no build command, and output directory `.`. Keep Git integration connected to this repository and branch.
+A successful merge, green source tests, or a READY preview does **not** prove the current production alias is serving that commit. Before claiming a release is live, verify the production deployment metadata, its Git SHA, target, aliases and deployed Edge Function version. Current production readiness is not certified; see `docs/PRODUCTION_RELEASE_GATE.md`.
+
+Vercel settings should use **Framework Preset: Other**, root directory `.`, no build command, and output directory `.`. Keep Git integration connected to this repository and branch. Do not bypass Vercel build limits or upgrade billing without owner approval.
 
 ## Supabase
 
@@ -49,11 +52,13 @@ Vercel settings should use **Framework Preset: Other**, root directory `.`, no b
 
 ## Launch checklist
 
+- Reconcile migration history with the live schema before applying any production migration. Never run `db reset --linked` or replay baseline DDL against production.
 - Configure and test production email confirmation and password recovery.
 - Verify real partners through the approved admin workflow before allowing QR claims.
 - Create an approved production campaign, then issue unique QR tokens through a trusted issuance workflow.
 - Replace demo catalogue entries and define fulfilment, returns, support and fraud-review operations.
 - Test duplicate scans, replay/idempotency, insufficient points, concurrent stock redemption, mobile camera permissions and RLS isolation.
 - Keep the service-role key server-side and review Supabase security/performance advisors before launch.
+- Verify production deployment SHA, Edge Function version/JWT settings, backup/restore readiness and safe smoke-test evidence.
 
 This is an MVP foundation, not yet a public-ready rewards programme. Demo records are not real offers and must not be represented as redeemable. Campaign activation requires an authorized admin; use draft creation first and review dates, budget, products, QR issuance, fulfilment and fraud controls before real packaging.

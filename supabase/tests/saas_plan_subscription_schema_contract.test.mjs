@@ -14,6 +14,9 @@ test("SaaS plan prices and entitlements are versioned with validated values", ()
   assert.match(migration, /currency text NOT NULL CHECK \(currency ~ '\^\[A-Z\]\{3\}\$'\)/i);
   assert.match(migration, /monthly_amount_minor bigint NOT NULL CHECK \(monthly_amount_minor >= 0\)/i);
   assert.match(migration, /yearly_amount_minor bigint NOT NULL CHECK \(yearly_amount_minor >= 0\)/i);
+  assert.match(migration, /monthly_provider_plan_id text/i);
+  assert.match(migration, /yearly_provider_plan_id text/i);
+  assert.match(migration, /published_at IS NULL OR[\\s\\S]*monthly_provider_plan_id IS NOT NULL AND yearly_provider_plan_id IS NOT NULL/i);
   assert.match(migration, /jsonb_typeof\(entitlements\) = 'object'/i);
   assert.match(migration, /jsonb_typeof\(usage_limits\) = 'object'/i);
 });

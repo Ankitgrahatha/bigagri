@@ -28,13 +28,13 @@ async function readJsonBody(
   req: Request,
 ): Promise<{ body: Record<string, unknown> | null; error?: "content_type_required" | "body_too_large" | "invalid_json" }> {
   const contentType = req.headers.get("Content-Type") ?? "";
-  if (!/^application\\/json(?:\\s*;|$)/i.test(contentType)) {
+  if (!/^application\/json(?:\s*;|$)/i.test(contentType)) {
     return { body: null, error: "content_type_required" };
   }
 
   const declaredLength = req.headers.get("Content-Length");
   if (declaredLength !== null) {
-    if (!/^\\d+$/.test(declaredLength) || Number(declaredLength) > MAX_REQUEST_BODY_BYTES) {
+    if (!/^\d+$/.test(declaredLength) || Number(declaredLength) > MAX_REQUEST_BODY_BYTES) {
       return { body: null, error: "body_too_large" };
     }
   }

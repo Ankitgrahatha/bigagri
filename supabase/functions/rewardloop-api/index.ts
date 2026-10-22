@@ -179,7 +179,7 @@ Deno.serve(async (req: Request) => {
       return reply(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
-    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product"].includes(action)) {
+    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status"].includes(action)) {
       // Keep legacy callers working on the original tenant, but allow an explicit
       // tenant context only after checking active membership below.
       const requestedTenantSlug = typeof body.tenant_slug === "string" ? body.tenant_slug.trim() : TENANT_SLUG;
@@ -210,6 +210,29 @@ Deno.serve(async (req: Request) => {
           return reply(data?.error === "forbidden" ? 403 : 400, {
             ok: false, error: data?.error || "point_value_save_failed"
           });
+        }
+        return reply(200, data);
+      }
+
+      if (action === "set_product_status") {
+        const productId = typeof body.product_id === "string" ? body.product_id : "";
+        const active = body.active;
+        const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(productId) ||
+            typeof active !== "boolean" || (!active && reason.length < 5)) {
+          return reply(400, { ok: false, error: "invalid_product_status_request" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_set_product_status_internal", {
+          p_actor_user_id: user.id,
+          p_tenant_id: tenant.id,
+          p_product_id: productId,
+          p_active: active,
+          p_reason: reason || null,
+        });
+        if (error) return reply(500, { ok: false, error: "product_status_update_failed" });
+        if (!data || data.ok !== true) {
+          const status = data?.error === "forbidden" ? 403 : data?.error === "product_not_found" ? 404 : 400;
+          return reply(status, { ok: false, error: data?.error || "product_status_update_failed" });
         }
         return reply(200, data);
       }

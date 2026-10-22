@@ -8,6 +8,40 @@ const respond = (status: number, body: Record<string, unknown>) =>
     headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
 
+async function readLimitedBody(
+  req: Request,
+  maxBytes: number,
+): Promise<{ bytes: Uint8Array | null; tooLarge: boolean }> {
+  const reader = req.body?.getReader();
+  if (!reader) return { bytes: new Uint8Array(), tooLarge: false };
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel().catch(() => {});
+        return { bytes: null, tooLarge: true };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { bytes: null, tooLarge: false };
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { bytes, tooLarge: false };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return respond(405, { ok: false, error: "method_not_allowed" });
 
@@ -23,15 +57,10 @@ Deno.serve(async (req: Request) => {
     return respond(503, { ok: false, error: "service_not_configured" });
   }
 
-  let rawBodyBytes: Uint8Array;
-  try {
-    rawBodyBytes = new Uint8Array(await req.arrayBuffer());
-  } catch {
-    return respond(400, { ok: false, error: "invalid_body" });
-  }
-  if (rawBodyBytes.byteLength > MAX_BODY_BYTES) {
-    return respond(413, { ok: false, error: "payload_too_large" });
-  }
+  const bodyRead = await readLimitedBody(req, MAX_BODY_BYTES);
+  if (bodyRead.tooLarge) return respond(413, { ok: false, error: "payload_too_large" });
+  if (!bodyRead.bytes) return respond(400, { ok: false, error: "invalid_body" });
+  const rawBodyBytes = bodyRead.bytes;
 
   const signature = req.headers.get("x-razorpay-signature");
   const verified = await verifyRazorpayWebhookSignature(rawBodyBytes, signature, webhookSecret);

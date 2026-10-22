@@ -4,8 +4,7 @@ CREATE TABLE IF NOT EXISTS private.claim_failed_attempts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   actor_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   request_id uuid NOT NULL,
-  attempted_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(actor_user_id, request_id)
+  attempted_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS claim_failed_attempts_actor_time_idx
@@ -72,8 +71,7 @@ begin
     END IF;
 
     INSERT INTO private.claim_failed_attempts(actor_user_id,request_id)
-    VALUES(p_actor_user_id,p_request_id)
-    ON CONFLICT(actor_user_id,request_id) DO NOTHING;
+    VALUES(p_actor_user_id,p_request_id);
 
     RETURN jsonb_build_object('ok',false,'outcome','invalid_code','points_awarded',0);
   end if;

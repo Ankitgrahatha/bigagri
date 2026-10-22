@@ -24,7 +24,7 @@ test("rate limiting is atomic and tenant/action/actor scoped", () => {
 });
 
 test("Redis outage does not replace database transaction safeguards or log secrets", () => {
-  assert.match(source, /Database constraints and the existing\s+// invalid-token counter remain authoritative/);
+  assert.match(source, /Database constraints and the existing\s+\/\/ invalid-token counter remain authoritative/);
   assert.match(source, /Fail open to existing database-level protections when Redis is unavailable/);
   assert.doesNotMatch(source, /console\.(?:log|error|warn)\([^\n]*(?:token|rawUrl|actorId)/i);
 });

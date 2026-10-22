@@ -145,7 +145,7 @@ Deno.serve(async (req: Request) => {
       return reply(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
-    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value"].includes(action)) {
+    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product"].includes(action)) {
       const { data: tenant, error: tenantError } = await admin.from("tenants").select("id,name,slug,status").eq("slug", TENANT_SLUG).maybeSingle();
       if (tenantError || !tenant || tenant.status !== "active") return reply(503, { ok: false, error: "tenant_unavailable" });
       const { data: membership, error: membershipError } = await admin.from("tenant_memberships").select("role,status")
@@ -172,6 +172,29 @@ Deno.serve(async (req: Request) => {
           });
         }
         return reply(200, data);
+      }
+
+      if (action === "create_product") {
+        const sku = typeof body.sku === "string" ? body.sku.trim().toUpperCase() : "";
+        const name = typeof body.name === "string" ? body.name.trim() : "";
+        const packSize = typeof body.pack_size === "string" ? body.pack_size.trim() : "";
+        if (!/^[A-Z0-9][A-Z0-9._/-]{0,63}$/.test(sku) ||
+            name.length < 2 || name.length > 160 || packSize.length > 80) {
+          return reply(400, { ok: false, error: "invalid_product_details" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_create_product_internal", {
+          p_actor_user_id: user.id,
+          p_tenant_id: tenant.id,
+          p_sku: sku,
+          p_name: name,
+          p_pack_size: packSize || null,
+        });
+        if (error) return reply(500, { ok: false, error: "product_create_failed" });
+        if (!data || data.ok !== true) {
+          const status = data?.error === "forbidden" ? 403 : data?.error === "sku_exists" ? 409 : 400;
+          return reply(status, { ok: false, error: data?.error || "product_create_failed" });
+        }
+        return reply(201, data);
       }
 
       if (action === "admin_dashboard") {

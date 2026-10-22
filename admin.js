@@ -151,7 +151,7 @@ const partnerSearch=document.getElementById("partner-search"),partnerStatusSelec
 const updatePartnerRows=()=>{const body=document.getElementById("partner-rows");if(body)body.innerHTML=renderPartnerRows();root.querySelectorAll("[data-verify]").forEach(b=>b.addEventListener("click",verifyHandler));};
 if(partnerSearch){
   partnerSearch.addEventListener("input",()=>{partnerQuery=partnerSearch.value;updatePartnerRows()});
-  const submitPartnerSearch=async()=>{partnerQuery=partnerSearch.value.trim().slice(0,80);pages.partners=0;await refresh()};
+  const submitPartnerSearch=async()=>{partnerQuery=partnerSearch.value.replace(/[^A-Za-z0-9 +.@-]/g,"").trim().slice(0,80);partnerSearch.value=partnerQuery;pages.partners=0;await refresh()};
   document.getElementById("partner-search-submit")?.addEventListener("click",submitPartnerSearch);
   partnerSearch.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();void submitPartnerSearch()}});
 }

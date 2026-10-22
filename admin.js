@@ -160,6 +160,7 @@ document.getElementById("campaign-create").addEventListener("submit",async e=>{
 });
 document.getElementById("issue").addEventListener("submit",async e=>{
   e.preventDefault();
+  if(pendingQrExport){toast("Secure or explicitly clear the previous one-time QR export before issuing another batch.",true);return;}
   const f=new FormData(e.currentTarget),count=Number(f.get("count")),points_value=Number(f.get("points"));
   if(!confirm("Issue "+count+" unique tokens worth "+points_value+" points each?"))return;
   const submit=e.currentTarget.querySelector("button[type=submit]");

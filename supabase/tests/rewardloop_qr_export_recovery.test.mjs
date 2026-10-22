@@ -5,7 +5,7 @@ import test from "node:test";
 const admin = readFileSync(new URL("../../admin.js", import.meta.url), "utf8");
 
 test("one-time QR tokens stay in memory for retry instead of being persisted", () => {
-  assert.match(admin, /pendingQrExport=\{batch_id:String\(r\.batch_id\|\|"unknown"\),tenant_slug:selectedTenantSlug,expected_count:count,codes\}/);
+  assert.match(admin, /pendingQrExport=\\{batch_id:String\\(r\\.batch_id\\|\\|"unknown"\\),tenant_slug:selectedTenantSlug,expected_count:count,codes,complete\\}/);
   assert.match(admin, /function downloadPendingQrExport\(\)/);
   assert.match(admin, /document\.getElementById\("download-qr-export"\)\?\.addEventListener/);
   assert.doesNotMatch(admin, /localStorage\.(?:setItem|getItem)\([^)]*(?:qr|token)/i);

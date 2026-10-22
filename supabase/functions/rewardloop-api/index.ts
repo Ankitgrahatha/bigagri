@@ -136,6 +136,11 @@ Deno.serve(async (req: Request) => {
       create_campaign: { limit: 10, windowSeconds: 60 },
       admin_record_export: { limit: 10, windowSeconds: 60 },
       admin_audit_logs: { limit: 30, windowSeconds: 60 },
+      admin_tenants: { limit: 30, windowSeconds: 60 },
+      set_point_value: { limit: 10, windowSeconds: 60 },
+      create_product: { limit: 20, windowSeconds: 60 },
+      update_product: { limit: 30, windowSeconds: 60 },
+      set_product_status: { limit: 20, windowSeconds: 60 },
     };
     const policy = ratePolicy[action];
     if (policy) {

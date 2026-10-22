@@ -34,7 +34,7 @@ test("only explicitly listed API actions are rate limited", () => {
   const end = source.indexOf("const policy = ratePolicy[action]", start);
   assert.ok(start >= 0 && end > start, "rate policy block exists");
   const policy = source.slice(start, end);
-  for (const action of ["profile", "claim", "redeem", "admin_dashboard", "issue_qr_batch", "resolve_redemption", "admin_record_export"]) {
+  for (const action of ["profile", "claim", "redeem", "admin_dashboard", "admin_tenants", "issue_qr_batch", "resolve_redemption", "admin_record_export", "set_point_value", "create_product", "update_product", "set_product_status"]) {
     assert.match(policy, new RegExp(action + ":"));
   }
 });

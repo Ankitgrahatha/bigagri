@@ -127,7 +127,7 @@ jobs:
           local, remote = migration_sets()
           if remote == historical:
               # This is history-only; the baseline SQL is NOT executed against production.
-              subprocess.run(["supabase","migration","repair",baseline,"--status","applied","--linked"],check=True)
+              subprocess.run(["supabase","migration","repair","--status","applied",baseline,"--linked"],check=True)
               _, remote = migration_sets()
           required_base = historical | {baseline}
           if not required_base.issubset(remote):

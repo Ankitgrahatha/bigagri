@@ -451,11 +451,31 @@ Deno.serve(async (req: Request) => {
           pages[name] = value;
         }
 
+        const rawPartnerQuery = typeof body.partner_query === "string" ? body.partner_query : "";
+        // Restrict the search grammar before embedding it in PostgREST's OR filter.
+        // Commas, parentheses, percent signs, backslashes and filter operators are excluded.
+        const partnerQuery = rawPartnerQuery.replace(/[^A-Za-z0-9 +.@-]/g, "").trim().slice(0, 80);
+        const partnerStatus = typeof body.partner_status === "string" ? body.partner_status : "all";
+        if (!["all", "pending", "verified", "rejected", "suspended"].includes(partnerStatus)) {
+          return reply(400, { ok: false, error: "invalid_partner_status" });
+        }
+
+        let partnersQuery = admin.from("partners")
+          .select("id,display_name,phone_e164,role,verification_status,preferred_locale,created_at", { count: "exact" })
+          .eq("tenant_id", tenant.id);
+        if (partnerQuery) {
+          partnersQuery = partnersQuery.or(`display_name.ilike.%${partnerQuery}%,phone_e164.ilike.%${partnerQuery}%`);
+        }
+        if (partnerStatus === "pending") {
+          partnersQuery = partnersQuery.in("verification_status", ["pending", "unverified"]);
+        } else if (partnerStatus !== "all") {
+          partnersQuery = partnersQuery.eq("verification_status", partnerStatus);
+        }
+        partnersQuery = partnersQuery.order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(pages.partners * pageSpecs.partners.size, (pages.partners + 1) * pageSpecs.partners.size - 1);
+
         const [partners, campaigns, products, batches, redemptions] = await Promise.all([
-          admin.from("partners")
-            .select("id,display_name,phone_e164,role,verification_status,preferred_locale,created_at", { count: "exact" })
-            .eq("tenant_id", tenant.id).order("created_at", { ascending: false }).order("id", { ascending: false })
-            .range(pages.partners * pageSpecs.partners.size, (pages.partners + 1) * pageSpecs.partners.size - 1),
+          partnersQuery,
           admin.from("campaigns")
             .select("id,name,status,starts_at,ends_at,budget_minor_units,currency,rules,created_at", { count: "exact" })
             .eq("tenant_id", tenant.id).order("created_at", { ascending: false }).order("id", { ascending: false })

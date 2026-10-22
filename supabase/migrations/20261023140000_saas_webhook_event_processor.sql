@@ -237,7 +237,7 @@ BEGIN
     )
     VALUES (
       v_subscription.tenant_id, v_subscription.id, 'razorpay',
-      'razorpay-payment:' || v_provider_payment_id, v_payment_amount, v_payment_currency,
+      'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'), v_payment_amount, v_payment_currency,
       v_provider_payment_id, 'captured', v_event_time
     )
     ON CONFLICT DO NOTHING;
@@ -338,7 +338,7 @@ BEGIN
     )
     VALUES (
       v_subscription.tenant_id, v_subscription.id, 'razorpay',
-      'razorpay-payment:' || v_provider_payment_id, v_payment_amount, v_payment_currency,
+      'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'), v_payment_amount, v_payment_currency,
       v_provider_payment_id, 'failed', 'provider_payment_failed'
     )
     ON CONFLICT DO NOTHING;
@@ -601,7 +601,7 @@ GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_event_internal(uui
     )
     VALUES (
       v_subscription.tenant_id, v_subscription.id, 'razorpay',
-      'razorpay-payment:' || v_provider_payment_id, v_payment_amount, v_payment_currency,
+      'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'), v_payment_amount, v_payment_currency,
       v_provider_payment_id, 'captured', v_event_time
     )
     ON CONFLICT DO NOTHING;
@@ -670,7 +670,7 @@ GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_event_internal(uui
     )
     VALUES (
       v_subscription.tenant_id, v_subscription.id, 'razorpay',
-      'razorpay-payment:' || v_provider_payment_id, v_payment_amount, v_payment_currency,
+      'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'), v_payment_amount, v_payment_currency,
       v_provider_payment_id, 'failed', 'provider_payment_failed'
     )
     ON CONFLICT DO NOTHING;
@@ -816,7 +816,7 @@ GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_event_internal(uui
     )
     VALUES (
       v_subscription.tenant_id, v_subscription.id, 'razorpay',
-      'razorpay-payment:' || v_provider_payment_id, v_payment_amount, v_payment_currency,
+      'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'), v_payment_amount, v_payment_currency,
       v_provider_payment_id, 'captured', v_event_time
     )
     ON CONFLICT DO NOTHING;
@@ -904,7 +904,7 @@ GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_event_internal(uui
     )
     VALUES (
       v_subscription.tenant_id, v_subscription.id, 'razorpay',
-      'razorpay-payment:' || v_provider_payment_id, v_payment_amount, v_payment_currency,
+      'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'), v_payment_amount, v_payment_currency,
       v_provider_payment_id, 'failed', 'provider_payment_failed'
     )
     ON CONFLICT DO NOTHING;
@@ -1153,7 +1153,7 @@ GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_event_internal(uui
     )
     VALUES (
       v_subscription.tenant_id, v_subscription.id, 'razorpay',
-      'razorpay-payment:' || v_provider_payment_id, v_payment_amount, v_payment_currency,
+      'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'), v_payment_amount, v_payment_currency,
       v_provider_payment_id, 'captured', v_event_time
     )
     ON CONFLICT DO NOTHING;
@@ -1222,7 +1222,7 @@ GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_event_internal(uui
     )
     VALUES (
       v_subscription.tenant_id, v_subscription.id, 'razorpay',
-      'razorpay-payment:' || v_provider_payment_id, v_payment_amount, v_payment_currency,
+      'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'), v_payment_amount, v_payment_currency,
       v_provider_payment_id, 'failed', 'provider_payment_failed'
     )
     ON CONFLICT DO NOTHING;

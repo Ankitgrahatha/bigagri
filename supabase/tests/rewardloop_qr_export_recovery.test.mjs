@@ -23,6 +23,7 @@ test("QR issuance validates token payload completeness and warns against reissui
 
 test("clearing an export requires explicit confirmation", () => {
   assert.ok(admin.includes("Confirm you have securely saved and verified the downloaded QR CSV"));
+  assert.ok(admin.includes("const complete=pendingQrExport.complete===true;"));
   assert.ok(admin.includes("if(!confirm(prompt))return;"));
   assert.ok(admin.includes("pendingQrExport=null;draw()"));
 });

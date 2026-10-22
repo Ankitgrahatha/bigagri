@@ -35,9 +35,9 @@ function downloadPendingQrExport(){
 }
 function renderQrExportNotice(){
   if(!pendingQrExport)return "";
-  const complete=pendingQrExport.expected_count===pendingQrExport.codes.length;
+  const complete=pendingQrExport.complete===true;
   const title=complete?"One-time QR export ready":"QR batch export needs attention";
-  const message=complete?"These QR tokens exist only in this browser memory until cleared or page exit. Download and securely store the CSV first.":"The batch was created, but the API returned fewer codes than requested. Do not issue a replacement batch automatically. Record the batch ID and reconcile missing codes before packaging.";
+  const message=complete?"These QR tokens exist only in this browser memory until cleared or page exit. Download and securely store the CSV first.":"The batch was created, but the API returned fewer codes than requested or one or more token payloads are incomplete. Do not issue a replacement batch automatically. Record the batch ID and reconcile before packaging.";
   const action=complete?"Download CSV again":"Download returned codes";
   const clear=complete?"I secured the file — clear tokens":"Clear in-memory tokens";
   return '<section class="panel admin-panel qr-export-notice" role="alert"><h2>'+title+'</h2><p>'+message+'</p><p class="history-sub">Batch '+esc(pendingQrExport.batch_id)+' · Tenant '+esc(pendingQrExport.tenant_slug)+' · '+pendingQrExport.codes.length+' of '+pendingQrExport.expected_count+' codes returned</p><div class="admin-actions"><button type="button" class="primary-button" id="download-qr-export">'+action+'</button><button type="button" class="secondary-button" id="clear-qr-export">'+clear+'</button></div></section>';
@@ -167,10 +167,10 @@ document.getElementById("issue").addEventListener("submit",async e=>{
   try{
     const r=await call("issue_qr_batch",{campaign_id:String(f.get("campaign")),product_id:String(f.get("product")),count,points_value,entitlement_role:String(f.get("role"))});
     const codes=Array.isArray(r.codes)?r.codes:[];
-    pendingQrExport={batch_id:String(r.batch_id||"unknown"),tenant_slug:selectedTenantSlug,expected_count:count,codes};
+    const complete=codes.length===count&&codes.every(c=>c&&typeof c.qr_id==="string"&&typeof c.token==="string"&&c.token.length>=16&&typeof c.qr_payload==="string"&&c.qr_payload.length>0);\n    pendingQrExport={batch_id:String(r.batch_id||"unknown"),tenant_slug:selectedTenantSlug,expected_count:count,codes,complete};
     if(!r.batch_id||!codes.length){toast("Batch response did not include recoverable QR tokens. Do not issue a replacement batch; reconcile batch "+String(r.batch_id||"unknown")+" with an administrator.",true);await refresh();return;}
     downloadPendingQrExport();
-    if(codes.length!==count)toast("Only "+codes.length+" of "+count+" QR tokens returned. Do not reissue; reconcile batch "+r.batch_id+".",true);
+    if(!complete)toast("QR export response is incomplete or invalid ("+codes.length+" of "+count+" codes). Do not reissue; reconcile batch "+r.batch_id+".",true);
     else toast("Batch issued. Verify and securely store the CSV; the one-time export remains available for retry.");
     await refresh();
   }catch(e){toast(e.message,true)}

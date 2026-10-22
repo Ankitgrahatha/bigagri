@@ -3,7 +3,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 // Publishable key is intended for browser use; row-level security protects data.
 const SUPABASE_URL = "https://guhhuqxrobhuumwrypnc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_6dr2KACqmGBM2AWZS6NTDw_1Kf3e8ru";
-const TENANT_SLUG = "growta-rewardloop";
+const DEFAULT_TENANT_SLUG = "growta-rewardloop";
+const requestedTenantSlug = new URLSearchParams(window.location.search).get("tenant")?.trim() || DEFAULT_TENANT_SLUG;
+// Slugs are public routing identifiers, never authorization. The server and RLS still
+// require an active tenant with public_catalog_enabled before exposing catalog/profile data.
+const TENANT_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(requestedTenantSlug)
+  ? requestedTenantSlug
+  : DEFAULT_TENANT_SLUG;
 const API_FUNCTION = "rewardloop-api";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
@@ -72,9 +78,9 @@ async function api(action, payload = {}) {
 }
 async function getTenant() {
   if (state.tenant) return state.tenant;
-  const { data, error } = await supabase.from("tenants").select("id,name,slug,status,default_locale").eq("slug", TENANT_SLUG).maybeSingle();
+  const { data, error } = await supabase.from("tenants").select("id,name,slug,status,default_locale,public_catalog_enabled").eq("slug", TENANT_SLUG).maybeSingle();
   if (error) throw error;
-  if (!data || data.status !== "active") throw new Error("tenant_unavailable");
+  if (!data || data.status !== "active" || data.public_catalog_enabled !== true) throw new Error("tenant_unavailable");
   state.tenant = data;
   return data;
 }
@@ -234,7 +240,7 @@ async function handleAuth(event) {
       if (error) throw error;
       if (data.session) {
         state.session = data.session;
-        const profile = await api("profile", { display_name: displayName, phone_e164: phone, preferred_locale: state.lang === "hi" ? "hi-IN" : "en-IN" });
+        const profile = await api("profile", { tenant_slug: TENANT_SLUG, display_name: displayName, phone_e164: phone, preferred_locale: state.lang === "hi" ? "hi-IN" : "en-IN" });
         if (!profile.ok) throw new Error(profile.error || "profile_create_failed");
         state.profile = profile.profile;
         toast(t("signupSuccess"), "success");
@@ -271,7 +277,7 @@ function renderProfileSetup() {
   document.getElementById("profile-form").addEventListener("submit", async e => {
     e.preventDefault(); const fd = new FormData(e.currentTarget); const name = String(fd.get("name") || "").trim(); const phone = String(fd.get("phone") || "").trim(); const locale = String(fd.get("locale") || "hi-IN");
     try {
-      const result = await api("profile", { display_name: name, phone_e164: phone, preferred_locale: locale });
+      const result = await api("profile", { tenant_slug: TENANT_SLUG, display_name: name, phone_e164: phone, preferred_locale: locale });
       if (!result.ok) throw new Error(result.error || "profile_create_failed");
       state.profile = result.profile; state.view = "home"; toast(t("profileSaved"), "success"); await loadDashboard();
     } catch (err) { toast(friendlyError(err), "error"); }

@@ -25,6 +25,7 @@ test("webhook inbox has constrained lifecycle and safe retry metadata", () => {
   assert.match(migration, /attempts integer NOT NULL DEFAULT 0 CHECK \(attempts >= 0\)/i);
   assert.match(migration, /status = 'processed' AND processed_at IS NOT NULL/i);
   assert.match(migration, /status <> 'processed' AND processed_at IS NULL AND processing_result IS NULL/i);
+  assert.match(migration, /last_attempt_at timestamptz/i);
   assert.match(migration, /processing_result text CHECK \(processing_result IS NULL OR processing_result IN \('applied', 'ignored', 'stale'\)\)/i);
   assert.match(migration, /last_error_code text/i);
   assert.doesNotMatch(migration, /last_error text/i);

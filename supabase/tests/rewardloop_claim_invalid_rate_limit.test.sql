@@ -4,6 +4,7 @@ DO $claim_invalid_rate_limit_test$
 DECLARE
   v_actor constant uuid := '00000000-0000-4000-8000-00000000b101';
   v_result jsonb;
+  v_reused_request constant uuid := '00000000-0000-4000-8000-00000000b201';
   i integer;
 BEGIN
   INSERT INTO auth.users(id) VALUES(v_actor);
@@ -12,7 +13,7 @@ BEGIN
     v_result := private.claim_qr(
       v_actor,
       'invalid-qr-token-guess-' || lpad(i::text,2,'0'),
-      gen_random_uuid(),
+      v_reused_request,
       'rate-limit-test',
       NULL
     );
@@ -24,7 +25,7 @@ BEGIN
   v_result := private.claim_qr(
     v_actor,
     'invalid-qr-token-guess-11',
-    gen_random_uuid(),
+    v_reused_request,
     'rate-limit-test',
     NULL
   );
@@ -46,7 +47,7 @@ BEGIN
     RAISE EXCEPTION 'expected exactly ten logged failed attempts';
   END IF;
 
-  RAISE NOTICE 'PASS: 10 failed token guesses logged, 11th rate-limited, no raw token stored';
+  RAISE NOTICE 'PASS: 10 failed token guesses logged even with a reused request ID, 11th rate-limited, no raw token stored';
 END;
 $claim_invalid_rate_limit_test$;
 ROLLBACK;

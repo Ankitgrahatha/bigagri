@@ -79,7 +79,7 @@ jobs:
           PY
 
       - name: Link the exact production Supabase project
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
       - name: Reconcile only the verified baseline and validate migration allowlist
         shell: bash

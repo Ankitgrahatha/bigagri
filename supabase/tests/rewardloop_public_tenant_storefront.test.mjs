@@ -8,6 +8,9 @@ const api = readFileSync(new URL("../functions/rewardloop-api/index.ts", import.
 test("storefront selects a tenant by public slug while keeping the current tenant as default", () => {
   assert.match(app, /DEFAULT_TENANT_SLUG\s*=\s*"growta-rewardloop"/);
   assert.match(app, /new URLSearchParams\(window\.location\.search\)\.get\("tenant"\)/);
+  assert.match(app, /function storefrontRedirectUrl/);
+  assert.match(app, /emailRedirectTo:storefrontRedirectUrl\(\)/);
+  assert.match(app, /storefrontRedirectUrl\(\{ auth: "reset" \}\)/);
   assert.match(app, /public_catalog_enabled/);
   assert.match(app, /data\.public_catalog_enabled !== true/);
 });

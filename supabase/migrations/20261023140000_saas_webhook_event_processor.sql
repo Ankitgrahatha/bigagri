@@ -60,6 +60,7 @@ BEGIN
   SET status = 'processing',
       attempts = attempts + 1,
       processing_started_at = now(),
+      last_attempt_at = now(),
       last_error_code = NULL,
       processing_result = NULL,
       processed_at = NULL
@@ -1336,18 +1337,24 @@ DECLARE
   v_result jsonb;
   v_processed integer := 0;
   v_failed integer := 0;
+  v_exhausted integer := 0;
   v_limit integer;
 BEGIN
   IF p_limit IS NULL OR p_limit < 1 OR p_limit > 100 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_batch_size');
   END IF;
   v_limit := p_limit;
+  SELECT count(*)::integer INTO v_exhausted
+  FROM private.saas_payment_webhook_events
+  WHERE status = 'failed' AND attempts >= 8;
 
   FOR v_event_id IN
     SELECT e.id
     FROM private.saas_payment_webhook_events e
     WHERE e.status = 'received'
-       OR (e.status = 'failed' AND e.attempts < 8)
+       OR (e.status = 'failed' AND e.attempts < 8
+           AND (e.last_attempt_at IS NULL
+                OR e.last_attempt_at < now() - (interval '1 minute' * LEAST(e.attempts, 5))))
        OR (e.status = 'processing' AND e.attempts < 8
            AND (e.processing_started_at IS NULL
                 OR e.processing_started_at < now() - interval '10 minutes'))
@@ -1367,6 +1374,7 @@ BEGIN
     'ok', true,
     'processed', v_processed,
     'failed', v_failed,
+    'exhausted', v_exhausted,
     'batch_size', v_limit
   );
 END

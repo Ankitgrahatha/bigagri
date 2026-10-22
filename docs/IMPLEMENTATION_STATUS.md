@@ -40,6 +40,15 @@ Current CI evidence on main:
 - Do not force a production deployment just to clear the smoke check: production Supabase migration history still needs schema comparison and reviewed history-only reconciliation. Keep the final production deployment pending until that release gate is ready.
 - These results prove the tested repository/CI path only, not that pending SQL has been applied to production.
 
+## Current production state after release preparation (2026-10-23)
+
+- The manually gated Supabase release workflow is merged (PR #72), and PR #74 adds a required-reviewer environment check before any production mutation. The workflow has **not** been dispatched.
+- The connected production Edge Function remains `rewardloop-api` version 9; the pending product-create/edit/lifecycle RPC migrations and later security migrations have not been applied.
+- A request to create a new Vercel deployment for the reviewed main commit was rejected with HTTP 402 `api-deployments-free-per-day` (more than 100 deployments in 24 hours; retry after 24 hours). No new deployment was created by that request.
+- To avoid leaving product-management controls visible while the deployed API lacked those actions, the production alias `bigagri.vercel.app` was reassigned to the prior READY deployment `dpl_5WsXBZEahJ88FuUXi1Rr72hxBPSU` (commit `2438cd95890769e26ebbbdcb8333153b91cafe87`). That version keeps the existing admin flows and does not show the newly added product CRUD controls.
+- When Vercel's deployment quota resets, deploy the then-current `main` commit and verify the production smoke workflow. The new UI's product controls remain capability-gated and should stay hidden until the matching Edge Function and database migrations are released.
+- Before running the Supabase release workflow, configure the `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` GitHub secrets, configure the `production` environment with required reviewers, and enable Supabase Auth leaked-password protection. The workflow requires an explicit operator confirmation and does not run on pushes.
+
 ## Latest release-gate evidence (2026-10-23)
 
 - The full baseline-parity gate was added in PR #68 and merged as commit `a3f70d1bbb16685c4828385a5f8b474b1f1cf547`. The isolated PostgreSQL job passed after applying the schema-only baseline and all 13 historical no-op markers, then comparing catalog fingerprints, function body/security hashes, per-table effective grants, and default-ACL behavior before applying newer migrations.

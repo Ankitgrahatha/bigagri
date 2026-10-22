@@ -23,19 +23,26 @@ Deno.serve(async (req: Request) => {
     return respond(503, { ok: false, error: "service_not_configured" });
   }
 
-  let rawBody: string;
+  let rawBodyBytes: Uint8Array;
   try {
-    rawBody = await req.text();
+    rawBodyBytes = new Uint8Array(await req.arrayBuffer());
   } catch {
     return respond(400, { ok: false, error: "invalid_body" });
   }
-  if (new TextEncoder().encode(rawBody).byteLength > MAX_BODY_BYTES) {
+  if (rawBodyBytes.byteLength > MAX_BODY_BYTES) {
     return respond(413, { ok: false, error: "payload_too_large" });
   }
 
   const signature = req.headers.get("x-razorpay-signature");
-  const verified = await verifyRazorpayWebhookSignature(rawBody, signature, webhookSecret);
+  const verified = await verifyRazorpayWebhookSignature(rawBodyBytes, signature, webhookSecret);
   if (!verified) return respond(401, { ok: false, error: "invalid_signature" });
+
+  let rawBody: string;
+  try {
+    rawBody = new TextDecoder("utf-8", { fatal: true }).decode(rawBodyBytes);
+  } catch {
+    return respond(400, { ok: false, error: "invalid_body_encoding" });
+  }
 
   const providerEventId = req.headers.get("x-razorpay-event-id")?.trim() ?? "";
   if (

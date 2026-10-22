@@ -12,6 +12,27 @@ Date: 2026-10-21
 - Added a later default-privilege migration that removes the observed broad grants for newly-created public tables/sequences/functions and removes PostgreSQL's default PUBLIC EXECUTE on future functions. Existing object grants remain reviewed explicitly.
 - Changed isolated CI to bootstrap an empty disposable PostgreSQL database from the baseline, apply the migration folder in timestamp order, load the local seed twice to check idempotency, then run the behavioral, default-privilege, and concurrency tests.
 
+## Stronger catalog fingerprint gate (2026-10-22)
+
+A read-only query captured deterministic SHA-256 fingerprints from the live project for these schema categories:
+
+| Category | Objects | Live fingerprint |
+|---|---:|---|
+| Public columns | 170 | `557cf04098d8519f16d8cc1a9d145088734cb6ef9cefce7bf3dcc467098719a2` |
+| Public constraints | 92 | `33c1dc63ba89a52e68e4d54ea54e2ee971269dfcd3821b339fcdbc499e09ebf2` |
+| Postgres default ACLs (global/public) | 3 | `22b6455fc66b7493530b32ae5b6c884685dcbbbe8e430d686e82c989a42949c4` |
+| Public enum labels | 28 | `e42d1fab480c15e989b9c1ed6bb57176c1c2f3bf3440817df91e39bbe59a40a4` |
+| Public/private functions (definition, identity args, security config and ACL) | 16 | `91eb2351ce145e8313d7b0db461200b916dd229dc7c367ff16f1fddd71bb484e` |
+| Public indexes | 60 | `9d67f1e13fcaca28de634af6810f33d0b478806b62b6c49b69d4a2469a7e8a1d` |
+| Public RLS policies | 14 | `55e32a204770348638ee3366e69ec6e77b590dfcaedd97a46e31cbe12e1b65dd` |
+| Public/private RLS table flags | 15 | `ea231962c74cee2034e24221b023b7bcf79a01a0aa32550fc22eb6c413fd752a` |
+| Public table ACLs | 15 | `7307bd5015e41b8209d48e8a309ee1c4c2b0a315a9c365b40d38244281b5ab84` |
+| Public/private non-internal triggers | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+
+The isolated PostgreSQL workflow now applies the baseline and the 13 historical timestamp markers, runs `rewardloop_live_schema_parity.test.sql`, and only then applies later feature/security migrations. The fingerprint test compares counts and signatures for all categories above, including function bodies, policy expressions, index definitions, constraint definitions, table ACLs, and default ACLs.
+
+This is a stricter gate than comparing object names and counts, but it is still a fingerprint of the listed catalog surfaces—not a physical backup or proof of runtime behavior. The workflow must pass before considering the baseline equivalent. Do not run history repair or push migrations solely because this file contains the expected hashes.
+
 ## Critical deployment boundary
 
 **Do not execute the baseline SQL on the existing production database.** Its DDL describes objects that already exist, so running it directly would create conflicts. The baseline is intended to reconstruct a new local/test database and to become the local source of truth.

@@ -71,3 +71,10 @@ jobs:
           grep -qi 'Growta RewardLoop' "$tmp/home.body"
           grep -q 'RewardLoop Admin' "$tmp/admin.body"
           grep -q 'admin_settings_get' <(curl --silent --show-error --location --max-time 20 https://bigagri.vercel.app/admin-settings.js)
+
+          # Verify the alias serves the newly merged behavior, not just any HTTP 200.
+          curl --silent --show-error --location --max-time 20 https://bigagri.vercel.app/app.js > "$tmp/app.js"
+          grep -q 'rate_limited:"claimRateLimited"' "$tmp/app.js"
+          grep -q 'claimRateLimited:"Too many invalid QR attempts' "$tmp/app.js"
+          grep -q 'Live Supabase Auth SMTP is not configured by this form yet' "$tmp/settings.body"
+          echo "PASS: production alias serves rate-limit UX and truthful admin email-settings copy"

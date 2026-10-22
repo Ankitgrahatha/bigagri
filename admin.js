@@ -55,7 +55,7 @@ document.getElementById("refresh").addEventListener("click",refresh);
 document.getElementById("download-qr-export")?.addEventListener("click",downloadPendingQrExport);
 document.getElementById("clear-qr-export")?.addEventListener("click",()=>{
   if(!pendingQrExport)return;
-  const complete=pendingQrExport.expected_count===pendingQrExport.codes.length;
+  const complete=pendingQrExport.complete===true;
   const prompt=complete
     ?"Confirm you have securely saved and verified the downloaded QR CSV. The one-time tokens will be cleared from this browser session."
     :"This export is incomplete. Clearing it is irreversible and missing tokens cannot be recovered. Continue only if you have recorded the batch ID for reconciliation.";

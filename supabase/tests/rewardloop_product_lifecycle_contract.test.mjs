@@ -31,6 +31,6 @@ test("admin UI provides deactivate/reactivate controls and requires a reason for
 });
 
 test("product management UI stays hidden until the deployed API advertises the capability", () => {
-  assert.match(api, /capabilities:\s*\{\s*product_management:\s*true\s*\}/);
+  assert.match(api, /capabilities:\s*\{[^}]*product_management:\s*true[^}]*\}/);
   assert.match(admin, /data\.capabilities\?\.product_management===true/);
 });

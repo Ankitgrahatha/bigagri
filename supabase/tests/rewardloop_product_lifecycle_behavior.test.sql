@@ -30,7 +30,7 @@ BEGIN
     RAISE EXCEPTION 'repeat deactivation should be idempotent: %',v_result;
   END IF;
   v_result := public.rewardloop_set_product_status_internal(v_admin_a,v_tenant_b,v_product_a,true,NULL);
-  IF v_result->>'ok'<>'false' OR v_result->>'error'<>'product_not_found' THEN
+  IF v_result->>'ok'<>'false' OR v_result->>'error'<>'forbidden' THEN
     RAISE EXCEPTION 'cross-tenant product mutation was not denied: %',v_result;
   END IF;
   v_result := public.rewardloop_set_product_status_internal(v_admin_a,v_tenant_a,v_product_a,true,NULL);

@@ -40,6 +40,14 @@ Current CI evidence on main:
 - Do not force a production deployment just to clear the smoke check: production Supabase migration history still needs schema comparison and reviewed history-only reconciliation. Keep the final production deployment pending until that release gate is ready.
 - These results prove the tested repository/CI path only, not that pending SQL has been applied to production.
 
+## Latest live Supabase advisor snapshot (2026-10-22)
+
+- **Warning:** leaked-password protection remains disabled in Supabase Auth. Enable it in Auth security settings and verify it with a controlled signup/password test before production launch.
+- **Informational:** `public.rewardloop_admin_settings` has RLS enabled with no table policies. This is intentional only if direct client access remains revoked and all reads/writes stay behind the authenticated, tenant-authorized `rewardloop-admin-settings` Edge Function. Recheck table grants and the function boundary if this changes.
+- **Performance info:** 25 indexes are currently reported unused. Do not drop them solely on this advisory; traffic is limited and these indexes support expected QR, claim, ledger, redemption and audit queries. Reassess after representative load tests.
+
+These findings were read from the connected project advisor. They are not fixed by CI and are separate from the migrations still pending production deployment.
+
 ## Production blockers still open
 
 1. **Production migration history is not yet reconciled.** Do not run the schema baseline against the live database. Compare live schema to the baseline, confirm the remote migration versions, then perform the documented history-only repair and review a linked dry-run before any production push.

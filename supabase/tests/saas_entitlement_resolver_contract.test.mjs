@@ -20,7 +20,7 @@ test("entitlements fail closed for missing, expired, unpaid, or unpublished subs
   assert.match(migration, /v_subscription\.current_period_end > now\(\)/i);
   assert.match(migration, /v_subscription\.trial_end > now\(\)/i);
   assert.match(migration, /'active', false/i);
-  assert.match(migration, /v_subscription\.status = 'past_due'/i);
+  assert.match(migration, /'status', v_subscription\.status/i);
 });
 
 test("current subscription state takes precedence over incomplete checkout attempts", () => {

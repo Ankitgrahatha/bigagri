@@ -183,7 +183,7 @@ Deno.serve(async (req: Request) => {
       return reply(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
-    if (["admin_dashboard", "admin_audit_logs", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status", "update_product"].includes(action)) {
+    if (["admin_dashboard", "admin_audit_logs", "admin_record_export", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status", "update_product"].includes(action)) {
       // Keep legacy callers working on the original tenant, but allow an explicit
       // tenant context only after checking active membership below.
       const requestedTenantSlug = typeof body.tenant_slug === "string" ? body.tenant_slug.trim() : TENANT_SLUG;
@@ -216,6 +216,33 @@ Deno.serve(async (req: Request) => {
           logs: rows || [],
           pagination: { page: rawPage, page_size: pageSize, total: count || 0 },
         });
+      }
+
+      if (action === "admin_record_export") {
+        const exportType = typeof body.export_type === "string" ? body.export_type : "";
+        const rowCount = Number(body.row_count);
+        const page = Number(body.page);
+        if (!["partners", "redemptions"].includes(exportType) ||
+            !Number.isSafeInteger(rowCount) || rowCount < 0 || rowCount > 100 ||
+            !Number.isSafeInteger(page) || page < 0 || page > 10000) {
+          return reply(400, { ok: false, error: "invalid_export_audit_request" });
+        }
+
+        // Record export intent only; never copy exported PII into the audit payload.
+        // The export itself remains limited to the current tenant-scoped page already
+        // returned by admin_dashboard.
+        const requestId = crypto.randomUUID();
+        const { error: auditInsertError } = await admin.from("audit_logs").insert({
+          tenant_id: tenant.id,
+          actor_user_id: user.id,
+          action: "admin_export_csv_requested",
+          entity_type: "export",
+          request_id: requestId,
+          reason: "CSV export requested",
+          after_data: { export_type: exportType, row_count: rowCount, page },
+        });
+        if (auditInsertError) return reply(500, { ok: false, error: "admin_export_audit_failed" });
+        return reply(200, { ok: true, request_id: requestId });
       }
 
       if (action === "set_point_value") {

@@ -43,6 +43,8 @@ test("processor handles out-of-order events and does not reactivate terminal sub
 test("batch worker uses row locks and caps retries for poison events", () => {
   assert.match(processor, /FOR UPDATE SKIP LOCKED/i);
   assert.match(processor, /e\.attempts < 8/i);
+  assert.match(processor, /last_attempt_at < now\(\) - \(interval '1 minute' \* LEAST\(e\.attempts, 5\)\)/i);
+  assert.match(processor, /'exhausted', v_exhausted/i);
   assert.match(processor, /p_limit < 1 OR p_limit > 100/i);
   assert.match(processor, /process_saas_payment_webhook_event\(v_event_id\)/i);
 });
@@ -52,6 +54,7 @@ test("processor worker requires a dedicated secret and never logs payment payloa
   assert.match(worker, /x-processor-secret/);
   assert.match(worker, /constantTimeEqual\(suppliedSecret, expectedSecret\)/i);
   assert.match(worker, /process_saas_payment_webhook_batch_internal/);
+  assert.match(worker, /exhausted: result\.exhausted/);
   assert.match(config, /\[functions\.process-razorpay-webhooks\]\s*verify_jwt = false/);
   assert.match(worker, /console\.error\("razorpay_webhook_batch_failed", \{ code: error\.code \?\? "unknown" \}\)/);
   assert.doesNotMatch(worker, /console\.(log|error|warn)\([^\n]*(secret|payload|payment)/i);

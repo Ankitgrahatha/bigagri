@@ -54,7 +54,11 @@ jobs:
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
           for route in / /admin.html /admin-settings.html; do
-            safe="$(printf '%s' "$route" | tr '/.' '__')"
+            case "$route" in
+              /) safe="home" ;;
+              /admin.html) safe="admin" ;;
+              /admin-settings.html) safe="settings" ;;
+            esac
             code="$(curl --silent --show-error --location --max-time 20 --dump-header "$tmp/$safe.headers" --output "$tmp/$safe.body" --write-out '%{http_code}' "https://bigagri.vercel.app$route")"
             test "$code" = "200"
             grep -qi '^x-content-type-options: nosniff' "$tmp/$safe.headers"
@@ -64,6 +68,6 @@ jobs:
             grep -qi '^permissions-policy: camera=(self), microphone=(), geolocation=(), payment=()' "$tmp/$safe.headers"
             echo "PASS: $route returned HTTP 200 with required security headers"
           done
-          grep -qi 'Growta RewardLoop' "$tmp/__.body"
-          grep -q 'RewardLoop Admin' "$tmp/__admin_html.body"
+          grep -qi 'Growta RewardLoop' "$tmp/home.body"
+          grep -q 'RewardLoop Admin' "$tmp/admin.body"
           grep -q 'admin_settings_get' <(curl --silent --show-error --location --max-time 20 https://bigagri.vercel.app/admin-settings.js)

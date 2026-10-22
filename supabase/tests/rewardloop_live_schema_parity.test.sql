@@ -11,7 +11,7 @@ BEGIN
       ('columns',170,'557cf04098d8519f16d8cc1a9d145088734cb6ef9cefce7bf3dcc467098719a2'),
       ('constraints',92,'33c1dc63ba89a52e68e4d54ea54e2ee971269dfcd3821b339fcdbc499e09ebf2'),
       ('enums',28,'e42d1fab480c15e989b9c1ed6bb57176c1c2f3bf3440817df91e39bbe59a40a4'),
-      ('functions',16,'22651a34d36fbdfcb05395ed57a02f79ffac0a0050ab974fd09709fcf2f746f3'),
+      ('functions',16,'6a6bd2b7bc3372808898c2a98f5d0c64ce16b5812d95713efbd82b13d8fdb42a'),
       ('indexes',60,'9d67f1e13fcaca28de634af6810f33d0b478806b62b6c49b69d4a2469a7e8a1d'),
       ('policies',14,'55e32a204770348638ee3366e69ec6e77b590dfcaedd97a46e31cbe12e1b65dd'),
       ('rls',15,'ea231962c74cee2034e24221b023b7bcf79a01a0aa32550fc22eb6c413fd752a'),
@@ -46,12 +46,7 @@ BEGIN
         SELECT count(*)::integer n,
           encode(extensions.digest(convert_to(coalesce(string_agg(
             concat_ws('|',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid),
-              pg_get_functiondef(p.oid),p.prosecdef,coalesce(array_to_string(p.proconfig,','),''),
-              coalesce((SELECT string_agg(concat_ws('|',gr.rolname,coalesce(ge.rolname,'PUBLIC'),
-                x.privilege_type,x.is_grantable::text),';'
-                ORDER BY gr.rolname,coalesce(ge.rolname,'PUBLIC'),x.privilege_type,x.is_grantable::text)
-                FROM aclexplode(p.proacl) x JOIN pg_roles gr ON gr.oid=x.grantor
-                LEFT JOIN pg_roles ge ON ge.oid=x.grantee),'')
+              pg_get_functiondef(p.oid),p.prosecdef,coalesce(array_to_string(p.proconfig,','),'')
             ),E'\\n' ORDER BY n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)),''),'UTF8'),'sha256'),'hex') fingerprint
           INTO v_actual FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
          WHERE n.nspname IN ('public','private') AND p.prokind IN ('f','p');

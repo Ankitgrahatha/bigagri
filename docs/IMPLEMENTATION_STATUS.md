@@ -35,7 +35,9 @@ Current CI evidence on main:
 - Latest verified transaction/security suite before the newest actor-replay merge passed on commit `948e6f5bf541e77a70ea92ce5319d14f46055a51`; the full clean PostgreSQL migration chain and behavioral tests passed.
 - The actor-replay merge (PR #51) adds owner-bound claim and redemption replay migrations and tests. Its quality gate, smoke tests, legacy-route guard, and isolated PostgreSQL suite passed on the pre-merge head `7c5e0abd29c4f0bea03ab8d5076ed5e9111efbc0`.
 - The frontend/PWA asset suite passed in PR #44 and the admin email-settings honesty/security suite passed in PR #48 before merge.
-- Production route/header smoke tests passed on commit `00306b26e7cb87f10889a3e6f555870f597bd82c` (public app, admin page, settings page); this is a GET-only smoke test and does not prove the newest commit or pending SQL migrations are live.
+- The latest inspected Vercel production deployment is READY at commit `948e6f5bf541e77a70ea92ce5319d14f46055a51` (deployment `dpl_2y3bVsTvGKXd8uB1sojgSPbeLgeT`); it predates the newly merged rate-limit feedback UI.
+- The enhanced production smoke workflow on commit `cce4d02268a0e558688240bd493b47d2052d2295` verified all three public routes and security headers, but failed the new frontend marker check because the live alias does not yet serve the expected rate-limit UX and truthful email-settings copy. This is deployment drift, not a database test failure.
+- Do not force a production deployment just to clear the smoke check: production Supabase migration history still needs schema comparison and reviewed history-only reconciliation. Keep the final production deployment pending until that release gate is ready.
 - These results prove the tested repository/CI path only, not that pending SQL has been applied to production.
 
 ## Production blockers still open
@@ -45,7 +47,7 @@ Current CI evidence on main:
 3. **Auth email delivery and leaked-password protection** remain unverified/disabled as noted below.
 4. **Legacy Edge Functions remain active.** The latest 24-hour function-log query showed traffic to `rewardloop-api` but no logged requests to the six legacy routes. That is only a 24-hour observation window—not sufficient evidence to retire routes. Keep them active until client references and a longer observation window are checked.
 5. **No browser-level end-to-end run** has yet proved signup → confirmation → profile → claim → balance → redemption → cancellation/fulfillment on the deployed production stack.
-6. **Latest deployment provenance remains unverified.** A route/header smoke run passed on commit `00306b26e7cb87f10889a3e6f555870f597bd82c`, but the newest merged commits require a fresh production smoke check before claiming they are live. Earlier Vercel deployment-quota failures should not be treated as resolved without current deployment evidence.
+6. **Production deployment is behind Git main.** Vercel reports the latest production target at commit `948e6f5bf541e77a70ea92ce5319d14f46055a51`. The latest marker-enhanced smoke check failed because the production alias does not yet serve the newest rate-limit UI and admin email-settings copy. Do not claim current main UI is live; deploy only after the database release gate is resolved.
 
 ## Implemented in repository / database
 

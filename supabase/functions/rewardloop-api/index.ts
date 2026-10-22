@@ -59,6 +59,40 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const action = typeof body.action === "string" ? body.action : "";
 
+    // List only active tenants for which this authenticated user has an active
+    // tenant-admin membership. Client-provided tenant IDs/slugs never grant access.
+    if (action === "admin_tenants") {
+      const { data: memberships, error: membershipsError } = await admin
+        .from("tenant_memberships")
+        .select("tenant_id,role")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .in("role", ["brand_admin", "super_admin"]);
+      if (membershipsError) return reply(500, { ok: false, error: "admin_tenant_context_failed" });
+
+      const roleByTenant = new Map<string, string>();
+      for (const membership of memberships || []) {
+        if (!roleByTenant.has(membership.tenant_id)) roleByTenant.set(membership.tenant_id, membership.role);
+      }
+      const tenantIds = [...roleByTenant.keys()];
+      if (!tenantIds.length) return reply(200, { ok: true, tenants: [] });
+
+      const { data: tenants, error: tenantsError } = await admin
+        .from("tenants")
+        .select("id,name,slug,status")
+        .in("id", tenantIds)
+        .eq("status", "active")
+        .order("name", { ascending: true });
+      if (tenantsError) return reply(500, { ok: false, error: "admin_tenant_context_failed" });
+      return reply(200, {
+        ok: true,
+        tenants: (tenants || []).map((tenant) => ({
+          ...tenant,
+          role: roleByTenant.get(tenant.id) || "brand_admin",
+        })),
+      });
+    }
+
     if (action === "profile") {
       const displayName = typeof body.display_name === "string" ? body.display_name.trim() : "";
       const phone = typeof body.phone_e164 === "string" ? body.phone_e164.trim() : "";
@@ -146,7 +180,13 @@ Deno.serve(async (req: Request) => {
     }
 
     if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value"].includes(action)) {
-      const { data: tenant, error: tenantError } = await admin.from("tenants").select("id,name,slug,status").eq("slug", TENANT_SLUG).maybeSingle();
+      // Keep legacy callers working on the original tenant, but allow an explicit
+      // tenant context only after checking active membership below.
+      const requestedTenantSlug = typeof body.tenant_slug === "string" ? body.tenant_slug.trim() : TENANT_SLUG;
+      if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(requestedTenantSlug)) {
+        return reply(400, { ok: false, error: "invalid_tenant_context" });
+      }
+      const { data: tenant, error: tenantError } = await admin.from("tenants").select("id,name,slug,status").eq("slug", requestedTenantSlug).maybeSingle();
       if (tenantError || !tenant || tenant.status !== "active") return reply(503, { ok: false, error: "tenant_unavailable" });
       const { data: membership, error: membershipError } = await admin.from("tenant_memberships").select("role,status")
         .eq("tenant_id", tenant.id).eq("user_id", user.id).eq("status", "active").in("role", ["brand_admin", "super_admin"]).maybeSingle();

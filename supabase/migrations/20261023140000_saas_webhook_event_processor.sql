@@ -1295,3 +1295,70 @@ REVOKE ALL PRIVILEGES ON FUNCTION public.process_saas_payment_webhook_event_inte
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_event_internal(uuid)
   TO service_role;
+
+-- Bounded batch entry point for a scheduler/worker. SKIP LOCKED permits multiple
+-- workers without processing the same inbox row concurrently.
+CREATE OR REPLACE FUNCTION private.process_saas_payment_webhook_batch(p_limit integer DEFAULT 25)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public', 'private'
+AS $function$
+DECLARE
+  v_event_id uuid;
+  v_result jsonb;
+  v_processed integer := 0;
+  v_failed integer := 0;
+  v_limit integer;
+BEGIN
+  IF p_limit IS NULL OR p_limit < 1 OR p_limit > 100 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'invalid_batch_size');
+  END IF;
+  v_limit := p_limit;
+
+  FOR v_event_id IN
+    SELECT e.id
+    FROM private.saas_payment_webhook_events e
+    WHERE e.status IN ('received', 'failed')
+       OR (e.status = 'processing'
+           AND (e.processing_started_at IS NULL
+                OR e.processing_started_at < now() - interval '10 minutes'))
+    ORDER BY e.received_at, e.id
+    FOR UPDATE SKIP LOCKED
+    LIMIT v_limit
+  LOOP
+    v_result := private.process_saas_payment_webhook_event(v_event_id);
+    IF v_result->>'ok' = 'true' THEN
+      v_processed := v_processed + 1;
+    ELSE
+      v_failed := v_failed + 1;
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'processed', v_processed,
+    'failed', v_failed,
+    'batch_size', v_limit
+  );
+END
+$function$;
+
+REVOKE ALL PRIVILEGES ON FUNCTION private.process_saas_payment_webhook_batch(integer)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.process_saas_payment_webhook_batch(integer)
+  TO service_role;
+
+CREATE OR REPLACE FUNCTION public.process_saas_payment_webhook_batch_internal(p_limit integer DEFAULT 25)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public', 'private'
+AS $function$
+  SELECT private.process_saas_payment_webhook_batch(p_limit);
+$function$;
+
+REVOKE ALL PRIVILEGES ON FUNCTION public.process_saas_payment_webhook_batch_internal(integer)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_batch_internal(integer)
+  TO service_role;

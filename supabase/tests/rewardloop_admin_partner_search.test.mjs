@@ -33,6 +33,8 @@ test("partner filtering happens before pagination so totals and pages match filt
 
 test("the admin UI lets the operator submit a global search and re-query on status changes", () => {
   assert.match(admin, /id="partner-search-submit"/);
+  assert.match(admin, /partnerQuery=partnerSearch\.value\.replace/);
+  assert.match(admin, /partnerSearch\.value=partnerQuery/);
   assert.match(admin, /partnerSearch\.addEventListener\("keydown"/);
   assert.match(admin, /partnerStatusSelect\.addEventListener\("change",async\(\)=>\{partnerStatus=partnerStatusSelect\.value;pages\.partners=0;await refresh\(\)\}\)/);
   assert.match(admin, /partnerStatus==="pending"\?\["pending","unverified"\]\.includes\(p\.verification_status\)/);

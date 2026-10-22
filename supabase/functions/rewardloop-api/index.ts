@@ -94,6 +94,10 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "profile") {
+      const requestedTenantSlug = typeof body.tenant_slug === "string" ? body.tenant_slug.trim() : TENANT_SLUG;
+      if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(requestedTenantSlug)) {
+        return reply(400, { ok: false, error: "tenant_slug_invalid" });
+      }
       const displayName = typeof body.display_name === "string" ? body.display_name.trim() : "";
       const phone = typeof body.phone_e164 === "string" ? body.phone_e164.trim() : "";
       const locale = body.preferred_locale === "en-IN" ? "en-IN" : "hi-IN";
@@ -105,8 +109,8 @@ Deno.serve(async (req: Request) => {
       }
 
       const { data: tenant, error: tenantError } = await admin
-        .from("tenants").select("id,status,default_locale").eq("slug", TENANT_SLUG).maybeSingle();
-      if (tenantError || !tenant || tenant.status !== "active") {
+        .from("tenants").select("id,status,default_locale,public_catalog_enabled").eq("slug", requestedTenantSlug).maybeSingle();
+      if (tenantError || !tenant || tenant.status !== "active" || tenant.public_catalog_enabled !== true) {
         return reply(503, { ok: false, error: "tenant_unavailable" });
       }
 

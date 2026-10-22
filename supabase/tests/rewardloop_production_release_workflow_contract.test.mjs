@@ -11,6 +11,8 @@ test("production release is manual and requires explicit confirmations",()=>{
  assert.match(workflow,/confirm_production_release == 'YES'/);
  assert.match(workflow,/auth_leaked_password_protection_enabled == 'YES'/);
  assert.match(workflow,/environment: production/);
+ assert.match(workflow,/environments\/production/);
+ assert.match(workflow,/required_reviewers/);
 });
 
 test("production release verifies CI and migration history before mutating production",()=>{

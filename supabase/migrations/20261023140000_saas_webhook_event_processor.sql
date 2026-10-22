@@ -1352,8 +1352,8 @@ BEGIN
            AND (e.processing_started_at IS NULL
                 OR e.processing_started_at < now() - interval '10 minutes'))
     ORDER BY e.received_at, e.id
-    FOR UPDATE SKIP LOCKED
     LIMIT v_limit
+    FOR UPDATE SKIP LOCKED
   LOOP
     v_result := private.process_saas_payment_webhook_event(v_event_id);
     IF v_result->>'ok' = 'true' THEN

@@ -50,6 +50,6 @@ test("both admin CSV paths neutralize spreadsheet formula injection", () => {
   const csvCell = runInNewContext(helperSource + "\ncsvCell");
   assert.equal(csvCell("=1+1"), "\"'=1+1\"");
   assert.equal(csvCell("  @SUM(A1:A2)"), "\"'  @SUM(A1:A2)\"");
-  assert.equal(csvCell("\t=HYPERLINK(\"https://example.invalid\")"), "\"'\t=HYPERLINK(\"https://example.invalid\")\"");
+  assert.equal(csvCell("\t=HYPERLINK(\"https://example.invalid\")"), "\"'\t=HYPERLINK(\"\"https://example.invalid\"\")\"");
   assert.equal(csvCell('plain, "quoted"'), '"plain, ""quoted"""');
 });

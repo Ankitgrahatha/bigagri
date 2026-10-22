@@ -14,7 +14,6 @@ BEGIN
       ('indexes',60,'9d67f1e13fcaca28de634af6810f33d0b478806b62b6c49b69d4a2469a7e8a1d'),
       ('policies',14,'55e32a204770348638ee3366e69ec6e77b590dfcaedd97a46e31cbe12e1b65dd'),
       ('rls',15,'ea231962c74cee2034e24221b023b7bcf79a01a0aa32550fc22eb6c413fd752a'),
-      ('table_acl',15,'64a3c59af6a5583a528ec331353b4628ec978fa080b2a5d6189204b54e5d8d59'),
       ('triggers',0,'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
     ) AS e(category, object_count, fingerprint)
   LOOP
@@ -61,22 +60,6 @@ BEGIN
             E'\n' ORDER BY n.nspname,c.relname),''),'UTF8'),'sha256'),'hex') fingerprint
           INTO v_actual FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
          WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p');
-      WHEN 'table_acl' THEN
-        SELECT
-          (SELECT count(*)::integer FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-            WHERE n.nspname='public' AND c.relkind IN ('r','p','S')) n,
-          encode(extensions.digest(convert_to(coalesce((
-            SELECT string_agg(concat_ws('|',n.nspname,c.relname,pg_get_userbyid(c.relowner),
-              gr.rolname,coalesce(ge.rolname,'PUBLIC'),x.privilege_type,x.is_grantable::text),
-              E'\\n' ORDER BY n.nspname,c.relname,pg_get_userbyid(c.relowner),
-                gr.rolname,coalesce(ge.rolname,'PUBLIC'),x.privilege_type,x.is_grantable::text)
-            FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-            CROSS JOIN LATERAL aclexplode(c.relacl) x
-            JOIN pg_roles gr ON gr.oid=x.grantor
-            LEFT JOIN pg_roles ge ON ge.oid=x.grantee
-            WHERE n.nspname='public' AND c.relkind IN ('r','p','S')
-          ),''),'UTF8'),'sha256'),'hex') fingerprint
-          INTO v_actual;
       WHEN 'triggers' THEN
         SELECT count(*)::integer n,
           encode(extensions.digest(convert_to(coalesce(string_agg(
@@ -92,6 +75,44 @@ BEGIN
         v_expected.category,v_expected.object_count,v_actual.n,v_expected.fingerprint,v_actual.fingerprint;
     END IF;
   END LOOP;
+  -- Compare each table's effective grants individually so any drift identifies the table.
+  IF EXISTS (
+    WITH expected(table_name, grants_md5) AS (
+      VALUES
+      ('audit_logs','e1fb0cbab82059804326b753e16d4557'),
+      ('campaigns','e52514b32371c5f424fe9b730d67ae5b'),
+      ('claims','d4daba63fc0f1e39d138b6f1b5ad2b6e'),
+      ('partners','d4daba63fc0f1e39d138b6f1b5ad2b6e'),
+      ('points_ledger','d4daba63fc0f1e39d138b6f1b5ad2b6e'),
+      ('production_batches','e1fb0cbab82059804326b753e16d4557'),
+      ('products','e52514b32371c5f424fe9b730d67ae5b'),
+      ('qr_codes','e1fb0cbab82059804326b753e16d4557'),
+      ('qr_issuance_batches','e1fb0cbab82059804326b753e16d4557'),
+      ('redemptions','b2899319147ae8beb8b63ba3ad8f9156'),
+      ('rewardloop_admin_settings','e1fb0cbab82059804326b753e16d4557'),
+      ('rewards','b2899319147ae8beb8b63ba3ad8f9156'),
+      ('scan_events','e1fb0cbab82059804326b753e16d4557'),
+      ('tenant_memberships','d4daba63fc0f1e39d138b6f1b5ad2b6e'),
+      ('tenants','e52514b32371c5f424fe9b730d67ae5b')
+    ),
+    actual AS (
+      SELECT c.relname table_name,
+        md5(coalesce(string_agg(
+          concat_ws('|',gr.rolname,coalesce(ge.rolname,'PUBLIC'),x.privilege_type,x.is_grantable::text),';'
+          ORDER BY gr.rolname,coalesce(ge.rolname,'PUBLIC'),x.privilege_type,x.is_grantable::text),'')) grants_md5
+      FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+      LEFT JOIN LATERAL aclexplode(c.relacl) x ON true
+      LEFT JOIN pg_roles gr ON gr.oid=x.grantor
+      LEFT JOIN pg_roles ge ON ge.oid=x.grantee
+      WHERE n.nspname='public' AND c.relkind IN ('r','p','S')
+      GROUP BY c.relname
+    )
+    SELECT 1 FROM expected e LEFT JOIN actual a USING(table_name)
+    WHERE a.table_name IS NULL OR a.grants_md5<>e.grants_md5
+  ) THEN
+    RAISE EXCEPTION 'baseline per-table grants differ from the captured live ACL snapshot';
+  END IF;
+
   -- Compare function bodies by name so any baseline drift identifies the exact function.
   IF EXISTS (
     WITH expected(schema_name,function_name,body_md5,is_security_definer,config) AS (

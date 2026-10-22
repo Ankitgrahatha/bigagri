@@ -1,6 +1,6 @@
 # RewardLoop Implementation Status
 
-Last reviewed: 2026-10-22
+Last reviewed: 2026-10-23
 Status: **MVP foundation exists; production launch is not yet approved.**
 
 ## Current deployed components
@@ -39,6 +39,16 @@ Current CI evidence on main:
 - The enhanced production smoke workflow on commit `cce4d02268a0e558688240bd493b47d2052d2295` verified all three public routes and security headers, but failed the new frontend marker check because the live alias does not yet serve the expected rate-limit UX and truthful email-settings copy. This is deployment drift, not a database test failure.
 - Do not force a production deployment just to clear the smoke check: production Supabase migration history still needs schema comparison and reviewed history-only reconciliation. Keep the final production deployment pending until that release gate is ready.
 - These results prove the tested repository/CI path only, not that pending SQL has been applied to production.
+
+## Latest release-gate evidence (2026-10-23)
+
+- The full baseline-parity gate was added in PR #68 and merged as commit `a3f70d1bbb16685c4828385a5f8b474b1f1cf547`. The isolated PostgreSQL job passed after applying the schema-only baseline and all 13 historical no-op markers, then comparing catalog fingerprints, function body/security hashes, per-table effective grants, and default-ACL behavior before applying newer migrations.
+- The same main commit passed all four CI workflows: isolated PostgreSQL regression, quality gate, safe API smoke tests, and legacy-route guard.
+- A fresh read-only query of the connected Supabase project still shows exactly the original 13 historical migration versions. It also confirms the baseline function hashes for `private.claim_qr`, `private.resolve_redemption`, and the eight original internal wrappers. The live `tenants` table does **not** yet have `public_catalog_enabled`, confirming that post-baseline migrations are still pending in production.
+- Vercel reports the production alias READY at commit `f246e08891e1e13f36f9e9abea2b2803b74dfae9` (deployment `dpl_7pt54LRi6Gn7PWihqa8mT6suALrB`). Git `main` has since advanced to `a3f70d1bbb16685c4828385a5f8b474b1f1cf547`; this is deployment drift. The Vercel deployment API still showed the recent production build-rate limit, so do not repeatedly trigger builds.
+- Vercel's grouped runtime-error query returned no errors in its selected window. This is only a limited observability signal, not proof of end-to-end correctness.
+
+**Release boundary:** the passing parity test proves the checked-in baseline matches the captured schema snapshot in the isolated test environment; it does not apply pending migrations or perform the Supabase CLI history-only repair. Do not change production migration history or push SQL until the authenticated CLI workflow confirms the full linked schema diff, current migration list, backup/restore readiness, and exact pending migration plan.
 
 ## Latest live Supabase advisor snapshot (2026-10-22)
 

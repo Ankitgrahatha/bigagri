@@ -10,12 +10,16 @@ test("production release is manual and requires explicit confirmations",()=>{
  assert.doesNotMatch(workflow,/^\s*push:/m);
  assert.match(workflow,/confirm_production_release == 'YES'/);
  assert.match(workflow,/auth_leaked_password_protection_enabled == 'YES'/);
+ assert.match(workflow,/confirm_live_schema_matches_baseline:/);
+ assert.match(workflow,/CONFIRM_LIVE_SCHEMA_MATCHES_BASELINE/);
  assert.match(workflow,/environment: production/);
 });
 
 test("production release verifies CI and migration history before mutating production",()=>{
  assert.match(workflow,/RewardLoop isolated database regression/);
  assert.match(workflow,/\["supabase","migration","repair","--status","applied",baseline,"--linked"\]/);
+ assert.match(workflow,/Refusing baseline history repair/);
+ assert.match(workflow,/CONFIRM_LIVE_SCHEMA_MATCHES_BASELINE.*!=.*"YES"/);
  assert.match(workflow,/supabase db push --linked --dry-run/);
  assert.match(workflow,/supabase db push --linked/);
  assert.match(workflow,/Verify every repository migration is recorded remotely/);

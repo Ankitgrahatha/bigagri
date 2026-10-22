@@ -15,7 +15,7 @@ test("production release is manual and requires explicit confirmations",()=>{
 
 test("production release verifies CI and migration history before mutating production",()=>{
  assert.match(workflow,/RewardLoop isolated database regression/);
- assert.match(workflow,/supabase migration repair/);
+ assert.match(workflow,/\["supabase","migration","repair",baseline,"--status","applied","--linked"\]/);
  assert.match(workflow,/supabase db push --linked --dry-run/);
  assert.match(workflow,/supabase db push --linked/);
  assert.match(workflow,/Verify every repository migration is recorded remotely/);

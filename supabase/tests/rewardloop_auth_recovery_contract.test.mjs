@@ -5,7 +5,7 @@ import test from "node:test";
 const app = readFileSync(new URL("../../app.js", import.meta.url), "utf8");
 
 test("password recovery requests use a fixed first-party redirect and generic response", () => {
-  assert.match(app, /resetPasswordForEmail\(email,\s*\{\s*redirectTo:\s*\`\$\{window\.location\.origin\}\/\?auth=reset\`/);
+    assert.match(app, /resetPasswordForEmail\(email,\s*\{\s*redirectTo:\s*storefrontRedirectUrl\(\{ auth: "reset" \}\)/);
   assert.match(app, /recoverySent:"If an account exists for this email/);
   assert.match(app, /recoverySent:"अगर यह ईमेल पंजीकृत है/);
 });

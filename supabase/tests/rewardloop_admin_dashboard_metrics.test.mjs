@@ -29,7 +29,7 @@ test("dashboard global KPIs come from a separately authorized aggregate RPC", ()
 });
 
 test("admin frontend keeps page state and does not present current-page length as global totals", () => {
-  assert.match(admin, /const pages=\{partners:0,products:0,campaigns:0,batches:0,redemptions:0\}/);
+  assert.match(admin, /const pages=\{partners:0,products:0,campaigns:0,batches:0,redemptions:0,audit:0\}/);
   assert.match(admin, /partners_page:pages\.partners/);
   assert.match(admin, /data\.metrics\?\.partners_total/);
   assert.match(admin, /data\.metrics\?\.redemptions_open/);

@@ -179,7 +179,7 @@ BEGIN
        OR coalesce(v_payment_entity->>'subscription_id', '') <> v_provider_subscription_id
        OR v_provider_plan_id IS NULL OR v_provider_plan_id <> v_expected_plan_id
        OR v_expected_amount <= 0
-       OR coalesce(v_payment_entity->>'amount', '') !~ '^[0-9]{1,18}
+       OR coalesce(v_payment_entity->>'amount', '') !~ '^[0-9]{1,18}$'
        OR v_payment_currency !~ '^[A-Z]{3}$' THEN
       v_failure_code := 'payment_or_plan_validation_failed';
       UPDATE private.saas_payment_webhook_events

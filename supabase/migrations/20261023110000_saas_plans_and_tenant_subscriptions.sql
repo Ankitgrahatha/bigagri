@@ -21,6 +21,8 @@ CREATE TABLE private.saas_plan_versions (
   currency text NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
   monthly_amount_minor bigint NOT NULL CHECK (monthly_amount_minor >= 0),
   yearly_amount_minor bigint NOT NULL CHECK (yearly_amount_minor >= 0),
+  monthly_provider_plan_id text CHECK (monthly_provider_plan_id IS NULL OR length(monthly_provider_plan_id) <= 255),
+  yearly_provider_plan_id text CHECK (yearly_provider_plan_id IS NULL OR length(yearly_provider_plan_id) <= 255),
   trial_days integer NOT NULL DEFAULT 0 CHECK (trial_days BETWEEN 0 AND 90),
   entitlements jsonb NOT NULL DEFAULT '{}'::jsonb
     CHECK (jsonb_typeof(entitlements) = 'object'),
@@ -29,12 +31,25 @@ CREATE TABLE private.saas_plan_versions (
   published_at timestamptz,
   created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT saas_plan_versions_plan_version_unique UNIQUE (plan_id, version_no)
+  CONSTRAINT saas_plan_versions_plan_version_unique UNIQUE (plan_id, version_no),
+  CONSTRAINT saas_plan_versions_published_provider_ids_check
+    CHECK (
+      published_at IS NULL OR
+      (monthly_provider_plan_id IS NOT NULL AND yearly_provider_plan_id IS NOT NULL)
+    )
 );
 
 CREATE INDEX saas_plan_versions_published_idx
   ON private.saas_plan_versions (plan_id, published_at DESC)
   WHERE published_at IS NOT NULL;
+
+CREATE UNIQUE INDEX saas_plan_versions_monthly_provider_plan_idx
+  ON private.saas_plan_versions (monthly_provider_plan_id)
+  WHERE monthly_provider_plan_id IS NOT NULL;
+
+CREATE UNIQUE INDEX saas_plan_versions_yearly_provider_plan_idx
+  ON private.saas_plan_versions (yearly_provider_plan_id)
+  WHERE yearly_provider_plan_id IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION private.prevent_published_saas_plan_version_mutation()
 RETURNS trigger
@@ -67,6 +82,7 @@ CREATE TABLE private.saas_tenant_subscriptions (
   plan_version_id uuid NOT NULL REFERENCES private.saas_plan_versions(id) ON DELETE RESTRICT,
   status text NOT NULL DEFAULT 'incomplete'
     CHECK (status IN ('incomplete', 'trialing', 'active', 'past_due', 'paused', 'canceled', 'expired')),
+  billing_interval text NOT NULL CHECK (billing_interval IN ('monthly', 'yearly')),
   provider text NOT NULL DEFAULT 'razorpay'
     CHECK (provider = 'razorpay'),
   provider_customer_id text CHECK (provider_customer_id IS NULL OR length(provider_customer_id) <= 255),

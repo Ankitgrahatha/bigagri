@@ -118,6 +118,9 @@ jobs:
       - name: Run transactional claim replay regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_claim_replay_behavior.test.sql
 
+      - name: Run claim replay owner isolation regression test
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_claim_replay_owner.test.sql
+
       - name: Run invalid QR claim rate-limit regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_claim_invalid_rate_limit.test.sql
 

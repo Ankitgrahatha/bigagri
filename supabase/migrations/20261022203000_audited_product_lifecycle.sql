@@ -43,7 +43,7 @@ BEGIN
   END IF;
 
   UPDATE public.products
-     SET active=p_active, updated_at=now()
+     SET active=p_active
    WHERE id=v_product.id
    RETURNING * INTO v_product;
 

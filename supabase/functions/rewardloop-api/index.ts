@@ -183,7 +183,7 @@ Deno.serve(async (req: Request) => {
       return reply(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
-    if (["admin_dashboard", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status", "update_product"].includes(action)) {
+    if (["admin_dashboard", "admin_audit_logs", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status", "update_product"].includes(action)) {
       // Keep legacy callers working on the original tenant, but allow an explicit
       // tenant context only after checking active membership below.
       const requestedTenantSlug = typeof body.tenant_slug === "string" ? body.tenant_slug.trim() : TENANT_SLUG;
@@ -196,6 +196,27 @@ Deno.serve(async (req: Request) => {
         .eq("tenant_id", tenant.id).eq("user_id", user.id).eq("status", "active").in("role", ["brand_admin", "super_admin"]).maybeSingle();
       if (membershipError) return reply(500, { ok: false, error: "admin_authorization_check_failed" });
       if (!membership) return reply(403, { ok: false, error: "admin_access_required" });
+
+      if (action === "admin_audit_logs") {
+        const rawPage = Number(body.audit_page ?? 0);
+        if (!Number.isSafeInteger(rawPage) || rawPage < 0 || rawPage > 100000) {
+          return reply(400, { ok: false, error: "invalid_audit_page" });
+        }
+        const pageSize = 20;
+        const { data: rows, error: auditError, count } = await admin
+          .from("audit_logs")
+          .select("id,actor_user_id,action,entity_type,entity_id,request_id,reason,created_at", { count: "exact" })
+          .eq("tenant_id", tenant.id)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(rawPage * pageSize, (rawPage + 1) * pageSize - 1);
+        if (auditError) return reply(500, { ok: false, error: "admin_audit_logs_load_failed" });
+        return reply(200, {
+          ok: true,
+          logs: rows || [],
+          pagination: { page: rawPage, page_size: pageSize, total: count || 0 },
+        });
+      }
 
       if (action === "set_point_value") {
         const pointValue = Number(body.point_value_minor_units);
@@ -386,7 +407,7 @@ Deno.serve(async (req: Request) => {
           ok: true,
           tenant,
           role: membership.role,
-          capabilities: { product_management: true },
+          capabilities: { product_management: true, audit_log_viewer: true },
           metrics: metricsResult.data,
           pagination,
           partners: partners.data || [],

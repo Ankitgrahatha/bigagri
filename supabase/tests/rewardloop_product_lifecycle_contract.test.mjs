@@ -29,3 +29,8 @@ test("admin UI provides deactivate/reactivate controls and requires a reason for
   assert.match(admin, /Reason for deactivating this product/);
   assert.match(admin, /call\("set_product_status"/);
 });
+
+test("product management UI stays hidden until the deployed API advertises the capability", () => {
+  assert.match(api, /capabilities:\s*\{\s*product_management:\s*true\s*\}/);
+  assert.match(admin, /data\.capabilities\?\.product_management===true/);
+});

@@ -386,6 +386,7 @@ Deno.serve(async (req: Request) => {
           ok: true,
           tenant,
           role: membership.role,
+          capabilities: { product_management: true },
           metrics: metricsResult.data,
           pagination,
           partners: partners.data || [],

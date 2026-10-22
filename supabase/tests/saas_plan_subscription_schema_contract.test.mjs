@@ -16,7 +16,7 @@ test("SaaS plan prices and entitlements are versioned with validated values", ()
   assert.match(migration, /yearly_amount_minor bigint NOT NULL CHECK \(yearly_amount_minor >= 0\)/i);
   assert.match(migration, /monthly_provider_plan_id text/i);
   assert.match(migration, /yearly_provider_plan_id text/i);
-  assert.match(migration, /published_at IS NULL OR[\\s\\S]*monthly_provider_plan_id IS NOT NULL AND yearly_provider_plan_id IS NOT NULL/i);
+  assert.match(migration, /published_at IS NULL OR[\s\S]*monthly_provider_plan_id IS NOT NULL AND yearly_provider_plan_id IS NOT NULL/i);
   assert.match(migration, /jsonb_typeof\(entitlements\) = 'object'/i);
   assert.match(migration, /jsonb_typeof\(usage_limits\) = 'object'/i);
 });
@@ -31,6 +31,7 @@ test("published plan versions are protected from updates and deletion", () => {
 test("tenant subscriptions enforce one current subscription and provider id uniqueness", () => {
   assert.match(migration, /tenant_id uuid NOT NULL REFERENCES public\.tenants\(id\)/i);
   assert.match(migration, /status IN \('incomplete', 'trialing', 'active', 'past_due', 'paused', 'canceled', 'expired'\)/i);
+  assert.match(migration, /billing_interval text NOT NULL CHECK \(billing_interval IN \('monthly', 'yearly'\)\)/i);
   assert.match(migration, /saas_tenant_subscription_one_current_idx/i);
   assert.match(migration, /WHERE status IN \('trialing', 'active', 'past_due', 'paused'\)/i);
   assert.match(migration, /saas_tenant_subscription_provider_id_idx/i);

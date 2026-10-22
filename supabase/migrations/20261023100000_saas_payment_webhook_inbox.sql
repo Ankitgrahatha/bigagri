@@ -17,14 +17,15 @@ CREATE TABLE private.saas_payment_webhook_events (
   received_at timestamptz NOT NULL DEFAULT now(),
   processing_started_at timestamptz,
   processed_at timestamptz,
+  processing_result text CHECK (processing_result IS NULL OR processing_result IN ('applied', 'ignored', 'stale')),
   last_error_code text
     CHECK (last_error_code IS NULL OR length(last_error_code) <= 120),
   CONSTRAINT saas_payment_webhook_events_provider_event_unique
     UNIQUE (provider, provider_event_id),
   CONSTRAINT saas_payment_webhook_events_processed_state_check
     CHECK (
-      (status = 'processed' AND processed_at IS NOT NULL)
-      OR (status <> 'processed' AND processed_at IS NULL)
+      (status = 'processed' AND processed_at IS NOT NULL AND processing_result IS NOT NULL)
+      OR (status <> 'processed' AND processed_at IS NULL AND processing_result IS NULL)
     )
 );
 

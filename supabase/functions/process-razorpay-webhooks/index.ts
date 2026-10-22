@@ -75,6 +75,7 @@ Deno.serve(async (req: Request) => {
     ok: true,
     processed: result.processed,
     failed: result.failed,
+    exhausted: result.exhausted,
     batch_size: result.batch_size,
   });
 });

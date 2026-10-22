@@ -10,13 +10,13 @@ BEGIN
     SELECT * FROM (VALUES
       ('columns',170,'557cf04098d8519f16d8cc1a9d145088734cb6ef9cefce7bf3dcc467098719a2'),
       ('constraints',92,'33c1dc63ba89a52e68e4d54ea54e2ee971269dfcd3821b339fcdbc499e09ebf2'),
-      ('default_acl_postgres',3,'22b6455fc66b7493530b32ae5b6c884685dcbbbe8e430d686e82c989a42949c4'),
+      ('default_acl_postgres',3,'5d14531c419f3e4ca6f2987afbda3699f9f133643a7f495b039eb57d9fd4e496'),
       ('enums',28,'e42d1fab480c15e989b9c1ed6bb57176c1c2f3bf3440817df91e39bbe59a40a4'),
       ('functions',16,'91eb2351ce145e8313d7b0db461200b916dd229dc7c367ff16f1fddd71bb484e'),
       ('indexes',60,'9d67f1e13fcaca28de634af6810f33d0b478806b62b6c49b69d4a2469a7e8a1d'),
       ('policies',14,'55e32a204770348638ee3366e69ec6e77b590dfcaedd97a46e31cbe12e1b65dd'),
       ('rls',15,'ea231962c74cee2034e24221b023b7bcf79a01a0aa32550fc22eb6c413fd752a'),
-      ('table_acl',15,'7307bd5015e41b8209d48e8a309ee1c4c2b0a315a9c365b40d38244281b5ab84'),
+      ('table_acl',15,'64a3c59af6a5583a528ec331353b4628ec978fa080b2a5d6189204b54e5d8d59'),
       ('triggers',0,'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
     ) AS e(category, object_count, fingerprint)
   LOOP
@@ -36,14 +36,25 @@ BEGIN
             E'\n' ORDER BY c.conrelid::regclass::text,c.conname),''),'UTF8'),'sha256'),'hex') fingerprint
           INTO v_actual FROM pg_constraint c WHERE c.connamespace='public'::regnamespace;
       WHEN 'default_acl_postgres' THEN
-        SELECT count(*)::integer n,
-          encode(extensions.digest(convert_to(coalesce(string_agg(
-            concat_ws('|',r.rolname,coalesce(n.nspname,''),d.defaclobjtype,d.defaclacl::text),
-            E'\n' ORDER BY r.rolname,coalesce(n.nspname,''),d.defaclobjtype),''),'UTF8'),'sha256'),'hex') fingerprint
-          INTO v_actual
-          FROM pg_default_acl d JOIN pg_roles r ON r.oid=d.defaclrole
-          LEFT JOIN pg_namespace n ON n.oid=d.defaclnamespace
-         WHERE r.rolname='postgres' AND (n.nspname='public' OR n.nspname IS NULL);
+        SELECT
+          (SELECT count(*)::integer FROM pg_default_acl d
+            JOIN pg_roles r ON r.oid=d.defaclrole
+            LEFT JOIN pg_namespace n ON n.oid=d.defaclnamespace
+           WHERE r.rolname='postgres' AND (n.nspname='public' OR n.nspname IS NULL)) n,
+          encode(extensions.digest(convert_to(coalesce((
+            SELECT string_agg(concat_ws('|',r.rolname,coalesce(n.nspname,''),d.defaclobjtype,
+              gr.rolname,coalesce(ge.rolname,'PUBLIC'),x.privilege_type,x.is_grantable::text),
+              E'\\n' ORDER BY r.rolname,coalesce(n.nspname,''),d.defaclobjtype,
+                gr.rolname,coalesce(ge.rolname,'PUBLIC'),x.privilege_type,x.is_grantable::text)
+            FROM pg_default_acl d
+            JOIN pg_roles r ON r.oid=d.defaclrole
+            LEFT JOIN pg_namespace n ON n.oid=d.defaclnamespace
+            CROSS JOIN LATERAL aclexplode(d.defaclacl) x
+            JOIN pg_roles gr ON gr.oid=x.grantor
+            LEFT JOIN pg_roles ge ON ge.oid=x.grantee
+            WHERE r.rolname='postgres' AND (n.nspname='public' OR n.nspname IS NULL)
+          ),''),'UTF8'),'sha256'),'hex') fingerprint
+          INTO v_actual;
       WHEN 'enums' THEN
         SELECT count(*)::integer n,
           encode(extensions.digest(convert_to(coalesce(string_agg(
@@ -82,12 +93,21 @@ BEGIN
           INTO v_actual FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
          WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p');
       WHEN 'table_acl' THEN
-        SELECT count(*)::integer n,
-          encode(extensions.digest(convert_to(coalesce(string_agg(
-            concat_ws('|',n.nspname,c.relname,pg_get_userbyid(c.relowner),coalesce(c.relacl::text,'')),
-            E'\n' ORDER BY n.nspname,c.relname),''),'UTF8'),'sha256'),'hex') fingerprint
-          INTO v_actual FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-         WHERE n.nspname='public' AND c.relkind IN ('r','p','S');
+        SELECT
+          (SELECT count(*)::integer FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='public' AND c.relkind IN ('r','p','S')) n,
+          encode(extensions.digest(convert_to(coalesce((
+            SELECT string_agg(concat_ws('|',n.nspname,c.relname,pg_get_userbyid(c.relowner),
+              gr.rolname,coalesce(ge.rolname,'PUBLIC'),x.privilege_type,x.is_grantable::text),
+              E'\\n' ORDER BY n.nspname,c.relname,pg_get_userbyid(c.relowner),
+                gr.rolname,coalesce(ge.rolname,'PUBLIC'),x.privilege_type,x.is_grantable::text)
+            FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            CROSS JOIN LATERAL aclexplode(c.relacl) x
+            JOIN pg_roles gr ON gr.oid=x.grantor
+            LEFT JOIN pg_roles ge ON ge.oid=x.grantee
+            WHERE n.nspname='public' AND c.relkind IN ('r','p','S')
+          ),''),'UTF8'),'sha256'),'hex') fingerprint
+          INTO v_actual;
       WHEN 'triggers' THEN
         SELECT count(*)::integer n,
           encode(extensions.digest(convert_to(coalesce(string_agg(

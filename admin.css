@@ -2,3 +2,11 @@
 .tenant-picker{display:flex;align-items:center;gap:9px;margin-top:12px;color:var(--muted);font-size:12px;font-weight:700}.tenant-picker select{min-width:220px;max-width:100%;min-height:38px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font:inherit}@media(max-width:760px){.tenant-picker{align-items:stretch;flex-direction:column}.tenant-picker select{width:100%;min-width:0}}
 
 .tenant-compat-warning{margin:0 0 16px;padding:12px 14px;border:1px solid #e7c879;border-radius:12px;background:#fff8e6;color:#704f0a;font-size:13px;line-height:1.5}
+
+/* Accessible section navigation for long admin workflows. */
+.admin-section-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 18px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.admin-section-nav-label{color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-right:2px}
+.admin-section-nav a{display:inline-flex;align-items:center;min-height:34px;padding:7px 11px;border:1px solid var(--line);border-radius:999px;color:var(--ink);font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap}
+.admin-section-nav a:hover,.admin-section-nav a:focus-visible{border-color:var(--brand,#2d6843);outline:2px solid transparent;background:#eef6ef}
+.admin-panel{scroll-margin-top:18px}
+@media(max-width:760px){.admin-section-nav{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain}.admin-section-nav-label{flex:0 0 auto}.admin-section-nav a{flex:0 0 auto}}

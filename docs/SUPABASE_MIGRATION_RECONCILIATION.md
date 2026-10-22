@@ -47,3 +47,20 @@ The committed seed is for local development only. Production `db push` does not 
 ## Validation limits
 
 The GitHub isolated PostgreSQL job validates the SQL migration chain, seed idempotency, transactional claim/redemption behavior, append-only ledger enforcement, privilege boundaries, public-catalog isolation, and concurrency cases. The disposable runner includes a minimal `auth.users`/Auth-function shim, so this is not a replacement for a full local Supabase CLI reset or an end-to-end Auth email-flow test.
+
+
+## Read-only schema parity evidence (2026-10-22)
+
+A read-only comparison was performed against the connected production project after the baseline was added. Results:
+
+- The live public schema has 15 tables; the baseline has the same 15 table names.
+- Every live public table's column-name set matches the corresponding baseline table (15/15 compared; no missing or extra columns).
+- The 14 live public RLS policy names match the baseline policy names.
+- The live database and baseline both define 16 application functions across `public` and `private`; function names and identity argument types match. The optional default-argument syntax is represented in the baseline but is not part of PostgreSQL's identity-argument display.
+- The live database reports 92 constraints: 28 checks, 37 foreign keys, 15 primary keys, and 12 unique constraints. The baseline contains the same constraint categories/counts.
+- The live schema reports 60 indexes. The baseline has 33 explicit index definitions plus 27 primary/unique constraint indexes, matching that count.
+- The live and baseline contain the same five application enum types. No non-internal triggers were found in the `public`/`private` schemas.
+
+This materially strengthens confidence that the schema-only baseline describes the current live schema. It is **not a full normalized DDL diff**: exact constraint expressions, index definitions, policy expressions, function bodies, ownership, grants, extension versions, and default ACLs still require final review. The structural comparison does not authorize production migration repair or a migration push by itself.
+
+The connected remote migration history still contains the original 13 historical versions and does not yet contain baseline version `20261021083000` or any later security migration. Do not apply the baseline DDL to production. The remaining release action is to use an authenticated Supabase CLI environment to verify `supabase migration list --linked`, perform history-only baseline repair only after the full schema diff and backup gate, then inspect `supabase db push --linked --dry-run` before executing any pending migration.

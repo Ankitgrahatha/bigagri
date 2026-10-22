@@ -21,7 +21,7 @@ test("admin operations validate the selected tenant slug and still enforce membe
 
 test("admin UI selects only server-provided tenant memberships and sends selected context", () => {
   assert.match(admin, /call\("admin_tenants"\)/);
-  assert.match(admin, /const ADMIN_SCOPED_ACTIONS = new Set/);
+  assert.match(admin, /const ADMIN_SCOPED_ACTIONS\s*=\s*new Set/);
   assert.match(admin, /tenant_slug:selectedTenantSlug/);
   assert.match(admin, /id="admin-tenant-select"/);
   assert.match(admin, /selectedTenantSlug=event\.currentTarget\.value/);

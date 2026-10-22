@@ -112,6 +112,9 @@ jobs:
       - name: Run atomic campaign budget regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_campaign_budget_behavior.test.sql
 
+      - name: Run audited product creation regression test
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_product_creation_behavior.test.sql
+
       - name: Run privileged admin RPC tenant-isolation regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_admin_rpc_tenant_isolation.test.sql
 

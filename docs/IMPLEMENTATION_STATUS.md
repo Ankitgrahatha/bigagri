@@ -15,7 +15,7 @@ Status: **MVP foundation exists; production launch is not yet approved.**
 
 The following changes are merged in Git and covered by successful GitHub Actions runs on `main`. They are **not all deployed to the connected production Supabase project**.
 
-- Claim idempotency and actor-scoped replay tests.
+- Claim idempotency and actor+QR-scoped replay tests, including conflict responses that do not reveal another claim.
 - Parallel PostgreSQL claim and redemption contention tests, including one-credit, one-reservation, balance serialization, and stock/accounting assertions.
 - Points ledger immutability: update, delete and truncate are rejected in the disposable database.
 - Least-privilege grants on reward-bearing tables and internal RPC execution.
@@ -23,12 +23,16 @@ The following changes are merged in Git and covered by successful GitHub Actions
 - Default privileges tightened for future objects and tested by creating new tables, sequences, and functions.
 - Schema-only local baseline, timestamp markers, safe local seed, and clean PostgreSQL rebuild workflow.
 - Redemption refund enum fix: cancellation/rejection compensation uses the existing `redeem_release` enum value; the isolated behavior test proves refund/stock restoration occurs once and fulfillment does not refund.
+- Redemption resolution explicitly rejects a NULL status at the database boundary; isolated SQL regression test passes.
+- Invalid QR token guesses are now rate-limited to 10 attempts per actor in a rolling 15-minute window. The private attempt table stores actor/request/time metadata only, never the submitted token. The migration is based on the latest budget-aware claim function so it preserves campaign liability enforcement.
 - The deployed admin settings function is now tracked in Git with tests for caller authentication, tenant admin authorization, field allowlisting and SMTP password non-persistence.
 - Six legacy Edge Function sources are archived outside the canonical deployment folder; none has been disabled.
 
 Current CI evidence on main:
-- Latest legacy-route guard and quality gate passed on commit `d8e8342f3dabfb8737b7ef1db07081d033a95b6a`.
-- The prior main run also passed isolated database regression and smoke tests on `a42ab0844dbf6ce27ae36620d09b32a72a04f0c0`.
+- Latest merged main commit for invalid-QR rate limiting: `948e6f5bf541e77a70ea92ce5319d14f46055a51`.
+- GitHub Actions quality gate, safe smoke tests, and legacy-route guard passed on that commit; isolated PostgreSQL regression also passed, including the full migration chain, campaign-budget exhaustion, invalid-token rate limit, claim/redeem concurrency, refunds, and authorization tests.
+- The first attempt at the rate-limit migration failed the campaign-budget regression because it would have replaced the budget-aware claim function with an older definition. That version was not merged. The migration was rebuilt from the latest budget-aware function, then the clean-database suite passed.
+- Production smoke tests passed on the preceding merged main commit `00306b26e7cb87f10889a3e6f555870f597bd82c`; this does not prove that the latest code or pending SQL migrations are live.
 - These results prove the tested repository/CI path only, not that pending SQL has been applied to production.
 
 ## Production blockers still open

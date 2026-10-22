@@ -21,8 +21,8 @@ CREATE TABLE private.saas_plan_versions (
   currency text NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
   monthly_amount_minor bigint NOT NULL CHECK (monthly_amount_minor >= 0),
   yearly_amount_minor bigint NOT NULL CHECK (yearly_amount_minor >= 0),
-  monthly_provider_plan_id text CHECK (monthly_provider_plan_id IS NULL OR length(monthly_provider_plan_id) <= 255),
-  yearly_provider_plan_id text CHECK (yearly_provider_plan_id IS NULL OR length(yearly_provider_plan_id) <= 255),
+  monthly_provider_plan_id text CHECK (monthly_provider_plan_id IS NULL OR length(btrim(monthly_provider_plan_id)) BETWEEN 1 AND 255),
+  yearly_provider_plan_id text CHECK (yearly_provider_plan_id IS NULL OR length(btrim(yearly_provider_plan_id)) BETWEEN 1 AND 255),
   trial_days integer NOT NULL DEFAULT 0 CHECK (trial_days BETWEEN 0 AND 90),
   entitlements jsonb NOT NULL DEFAULT '{}'::jsonb
     CHECK (jsonb_typeof(entitlements) = 'object'),
@@ -85,8 +85,8 @@ CREATE TABLE private.saas_tenant_subscriptions (
   billing_interval text NOT NULL CHECK (billing_interval IN ('monthly', 'yearly')),
   provider text NOT NULL DEFAULT 'razorpay'
     CHECK (provider = 'razorpay'),
-  provider_customer_id text CHECK (provider_customer_id IS NULL OR length(provider_customer_id) <= 255),
-  provider_subscription_id text CHECK (provider_subscription_id IS NULL OR length(provider_subscription_id) <= 255),
+  provider_customer_id text CHECK (provider_customer_id IS NULL OR length(btrim(provider_customer_id)) BETWEEN 1 AND 255),
+  provider_subscription_id text CHECK (provider_subscription_id IS NULL OR length(btrim(provider_subscription_id)) BETWEEN 1 AND 255),
   current_period_start timestamptz,
   current_period_end timestamptz,
   trial_end timestamptz,

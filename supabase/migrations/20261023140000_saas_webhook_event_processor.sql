@@ -151,7 +151,7 @@ BEGIN
   END IF;
 
   IF v_subscription.status IN ('canceled', 'expired')
-     AND v_event_type NOT IN ('subscription.cancelled', 'subscription.completed') THEN
+     AND v_event_type NOT IN ('subscription.cancelled', 'subscription.completed', 'subscription.charged', 'payment.failed') THEN
     UPDATE private.saas_payment_webhook_events
     SET status = 'processed', processing_result = 'stale',
         processed_at = now(), processing_started_at = NULL, last_error_code = NULL

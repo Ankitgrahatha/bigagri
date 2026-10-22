@@ -1319,8 +1319,9 @@ BEGIN
   FOR v_event_id IN
     SELECT e.id
     FROM private.saas_payment_webhook_events e
-    WHERE e.status IN ('received', 'failed')
-       OR (e.status = 'processing'
+    WHERE e.status = 'received'
+       OR (e.status = 'failed' AND e.attempts < 8)
+       OR (e.status = 'processing' AND e.attempts < 8
            AND (e.processing_started_at IS NULL
                 OR e.processing_started_at < now() - interval '10 minutes'))
     ORDER BY e.received_at, e.id

@@ -1,0 +1,191 @@
+name: RewardLoop controlled production release
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production_release:
+        description: "Set YES only after reviewing the exact pending migrations and release notes."
+        type: choice
+        options: ["NO", "YES"]
+        default: "NO"
+        required: true
+      auth_leaked_password_protection_enabled:
+        description: "Confirm leaked-password protection has been enabled in Supabase Auth before release."
+        type: choice
+        options: ["NO", "YES"]
+        default: "NO"
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rewardloop-production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: inputs.confirm_production_release == 'YES' && inputs.auth_leaked_password_protection_enabled == 'YES' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      SUPABASE_PROJECT_REF: guhhuqxrobhuumwrypnc
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout reviewed main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
+        with:
+          version: 2.115.0
+
+      - name: Validate credentials and required CI on this exact commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::Missing SUPABASE_ACCESS_TOKEN secret"; exit 1; }
+          test -n "$SUPABASE_DB_PASSWORD" || { echo "::error::Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
+          python3 - <<'PY'
+          import json, os, subprocess, urllib.request
+          repo = os.environ["GITHUB_REPOSITORY"]
+          sha = os.environ["GITHUB_SHA"]
+          token = os.environ["GH_TOKEN"]
+          url = f"https://api.github.com/repos/{repo}/actions/runs?branch=main&per_page=100"
+          req = urllib.request.Request(url, headers={
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+          })
+          with urllib.request.urlopen(req, timeout=20) as response:
+              runs = json.load(response)["workflow_runs"]
+          required = {
+              "RewardLoop isolated database regression",
+              "RewardLoop quality gate",
+              "RewardLoop safe smoke tests",
+              "RewardLoop legacy route guard",
+          }
+          passed = {r["name"] for r in runs if r.get("head_sha") == sha and r.get("conclusion") == "success"}
+          missing = sorted(required - passed)
+          if missing:
+              raise SystemExit(f"Refusing production release; required checks have not passed on {sha}: {missing}")
+          print(f"PASS: required CI workflows passed on {sha}")
+          PY
+
+      - name: Link the exact production Supabase project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Reconcile only the verified baseline and validate migration allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, subprocess
+          from pathlib import Path
+
+          historical = {
+            "20261021083115","20261021083135","20261021083153","20261021083301",
+            "20261021083322","20261021083507","20261021083518","20261021083620",
+            "20261021083632","20261021113806","20261021114631","20261021114919",
+            "20261021121229",
+          }
+          baseline = "20261021083000"
+          post = {
+            "20261021170000","20261021182000","20261021183000","20261021190000",
+            "20261021191000","20261021192000","20261021193000","20261021200000",
+            "20261021201000","20261021202000","20261021203000","20261021203100",
+            "20261022100000","20261022110000","20261022200000","20261022203000",
+            "20261022210000",
+          }
+          expected_local = historical | {baseline} | post
+          actual_local = {p.name[:14] for p in Path("supabase/migrations").glob("*.sql")}
+          if actual_local != expected_local:
+              raise SystemExit(f"Local migration allowlist changed. Missing={sorted(expected_local-actual_local)} unexpected={sorted(actual_local-expected_local)}")
+
+          def migration_sets():
+              result = subprocess.run(["supabase","migration","list","--linked"],text=True,capture_output=True,check=True)
+              print(result.stdout)
+              local, remote = set(), set()
+              for line in result.stdout.splitlines():
+                  cells = line.split("|")
+                  if len(cells) < 2:
+                      continue
+                  left = re.search(r"(?<!\d)(\d{14})(?!\d)", cells[0])
+                  right = re.search(r"(?<!\d)(\d{14})(?!\d)", cells[1])
+                  if left: local.add(left.group(1))
+                  if right: remote.add(right.group(1))
+              if local != expected_local:
+                  raise SystemExit(f"CLI local migration list differs from allowlist: {sorted(local ^ expected_local)}")
+              return local, remote
+
+          local, remote = migration_sets()
+          if remote == historical:
+              # This is history-only; the baseline SQL is NOT executed against production.
+              subprocess.run(["supabase","migration","repair",baseline,"--status","applied","--linked"],check=True)
+              _, remote = migration_sets()
+          required_base = historical | {baseline}
+          if not required_base.issubset(remote):
+              raise SystemExit(f"Remote history is missing expected baseline versions: {sorted(required_base-remote)}")
+          if not remote.issubset(local):
+              raise SystemExit(f"Remote history contains unknown versions; stop and investigate: {sorted(remote-local)}")
+          pending = local - remote
+          if pending != post - (remote & post):
+              raise SystemExit(f"Unexpected pending migration set: {sorted(pending)}")
+          print("Pending, explicitly allowlisted migrations:", *sorted(pending), sep="\n  ")
+          PY
+
+      - name: Review pending migration plan (dry run)
+        run: supabase db push --linked --dry-run
+
+      - name: Apply reviewed production database migrations
+        run: supabase db push --linked
+
+      - name: Verify every repository migration is recorded remotely
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, subprocess
+          from pathlib import Path
+          local = {p.name[:14] for p in Path("supabase/migrations").glob("*.sql")}
+          result = subprocess.run(["supabase","migration","list","--linked"],text=True,capture_output=True,check=True)
+          print(result.stdout)
+          remote=set()
+          for line in result.stdout.splitlines():
+              cells=line.split("|")
+              if len(cells)<2: continue
+              match=re.search(r"(?<!\d)(\d{14})(?!\d)",cells[1])
+              if match: remote.add(match.group(1))
+          if remote != local:
+              raise SystemExit(f"Migration history mismatch after push. Missing={sorted(local-remote)} unexpected={sorted(remote-local)}")
+          print(f"PASS: all {len(local)} local migrations are recorded remotely")
+          PY
+
+      - name: Deploy the matching RewardLoop API
+        run: supabase functions deploy rewardloop-api --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Read-only production smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in / /admin.html /admin-settings.html; do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' "https://bigagri.vercel.app$path")"
+            echo "$path -> HTTP $code"
+            test "$code" = "200"
+          done
+          cors_code="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "https://$SUPABASE_PROJECT_REF.supabase.co/functions/v1/rewardloop-api" \
+            -H 'Origin: https://bigagri.vercel.app' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: authorization,content-type')"
+          echo "RewardLoop API CORS preflight -> HTTP $cors_code"
+          test "$cors_code" = "204"
+          auth_code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "https://$SUPABASE_PROJECT_REF.supabase.co/functions/v1/rewardloop-api" \
+            -H 'Content-Type: application/json' --data '{"action":"admin_dashboard"}')"
+          echo "Unauthenticated admin API request -> HTTP $auth_code"
+          test "$auth_code" = "401" || test "$auth_code" = "403"

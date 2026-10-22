@@ -43,7 +43,7 @@ Current CI evidence on main:
 ## Production blockers still open
 
 1. **Production migration history is not yet reconciled.** Do not run the schema baseline against the live database. Compare live schema to the baseline, confirm the remote migration versions, then perform the documented history-only repair and review a linked dry-run before any production push.
-2. **Refund, claim/rate-limit, product creation, product lifecycle and other subsequent security migrations are pending deployment.** They are in Git and passed isolated tests; the live function/database still needs controlled release verification.
+2. **Refund, claim/rate-limit, product creation, product lifecycle, product editing and other subsequent security migrations are pending deployment.** They are in Git and passed isolated tests; the live function/database still needs controlled release verification.
 3. **Auth email delivery and leaked-password protection** remain unverified/disabled as noted below.
 4. **Legacy Edge Functions remain active.** The latest 24-hour function-log query showed traffic to `rewardloop-api` but no logged requests to the six legacy routes. That is only a 24-hour observation window—not sufficient evidence to retire routes. Keep them active until client references and a longer observation window are checked.
 5. **No browser-level end-to-end run** has yet proved signup → confirmation → profile → claim → balance → redemption → cancellation/fulfillment on the deployed production stack.
@@ -54,7 +54,7 @@ Current CI evidence on main:
 - Hindi-first/English-switchable responsive PWA shell.
 - Supabase email/password auth and profile onboarding.
 - Partner verification admin flow.
-- Product and campaign management with explicit campaign lifecycle controls. Product creation and deactivate/reactivate controls are now implemented with tenant-scoped, audited RPCs and passing isolated PostgreSQL tests (PRs #62 and #63). A new isolated-tested migration adds explicit point valuation, an append-only campaign award-liability ledger, serialized budget checks and fail-closed activation rules; it remains pending production deployment until reviewed.
+- Product and campaign management with explicit campaign lifecycle controls. Product creation, metadata editing (SKU remains immutable), and deactivate/reactivate controls are implemented with tenant-scoped, audited RPCs and passing isolated PostgreSQL tests (PRs #62, #63 and #65). A new isolated-tested migration adds explicit point valuation, an append-only campaign award-liability ledger, serialized budget checks and fail-closed activation rules; it remains pending production deployment until reviewed.
 - Unique QR batch issuance, one-time token download and batch revocation.
 - Server-side QR claim and redemption endpoints using database RPCs.
 - Points ledger, scan events, claim records, redemption history and audit tables.

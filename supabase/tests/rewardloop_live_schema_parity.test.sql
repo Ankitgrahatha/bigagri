@@ -11,7 +11,6 @@ BEGIN
       ('columns',170,'557cf04098d8519f16d8cc1a9d145088734cb6ef9cefce7bf3dcc467098719a2'),
       ('constraints',92,'33c1dc63ba89a52e68e4d54ea54e2ee971269dfcd3821b339fcdbc499e09ebf2'),
       ('enums',28,'e42d1fab480c15e989b9c1ed6bb57176c1c2f3bf3440817df91e39bbe59a40a4'),
-      ('functions',16,'6a6bd2b7bc3372808898c2a98f5d0c64ce16b5812d95713efbd82b13d8fdb42a'),
       ('indexes',60,'9d67f1e13fcaca28de634af6810f33d0b478806b62b6c49b69d4a2469a7e8a1d'),
       ('policies',14,'55e32a204770348638ee3366e69ec6e77b590dfcaedd97a46e31cbe12e1b65dd'),
       ('rls',15,'ea231962c74cee2034e24221b023b7bcf79a01a0aa32550fc22eb6c413fd752a'),
@@ -42,14 +41,6 @@ BEGIN
           INTO v_actual
           FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace
           JOIN pg_enum e ON e.enumtypid=t.oid WHERE n.nspname='public';
-      WHEN 'functions' THEN
-        SELECT count(*)::integer n,
-          encode(extensions.digest(convert_to(coalesce(string_agg(
-            concat_ws('|',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid),
-              pg_get_functiondef(p.oid),p.prosecdef,coalesce(array_to_string(p.proconfig,','),'')
-            ),E'\\n' ORDER BY n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)),''),'UTF8'),'sha256'),'hex') fingerprint
-          INTO v_actual FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-         WHERE n.nspname IN ('public','private') AND p.prokind IN ('f','p');
       WHEN 'indexes' THEN
         SELECT count(*)::integer n,
           encode(extensions.digest(convert_to(coalesce(string_agg(
@@ -101,6 +92,36 @@ BEGIN
         v_expected.category,v_expected.object_count,v_actual.n,v_expected.fingerprint,v_actual.fingerprint;
     END IF;
   END LOOP;
+  -- Compare function bodies by name so any baseline drift identifies the exact function.
+  IF EXISTS (
+    WITH expected(schema_name,function_name,body_md5,is_security_definer,config) AS (
+      VALUES
+      ('private','claim_qr','f6a67d7974fe5da73b2a973c8b206f4c',true,'search_path=pg_catalog, extensions, public, private'),
+      ('private','create_rewardloop_campaign','918c691ed084fa161290ff0b163f9b4a',true,'search_path=pg_catalog, extensions, public, private'),
+      ('private','issue_qr_batch','5bb83cd3b2d4ebd905aaef1bde3bec25',true,'search_path=pg_catalog, extensions, public, private'),
+      ('private','redeem_reward','0e4f87419e83975efdc8ac478c136ce8',true,'search_path=pg_catalog, extensions, public, private'),
+      ('private','resolve_redemption','202080e0c8ea5c1d978063c5410d8de9',true,'search_path=pg_catalog, extensions, public, private'),
+      ('private','revoke_qr_batch','0db0c8e10fb27f4208f599a4878ca594',true,'search_path=pg_catalog, extensions, public, private'),
+      ('private','set_rewardloop_campaign_status','ead75432d9a4f03d917346d9721ead90',true,'search_path=pg_catalog, extensions, public, private'),
+      ('private','verify_partner','5b8c45f972003e9327c76261d92b9997',true,'search_path=pg_catalog, extensions, public, private'),
+      ('public','rewardloop_claim_qr_internal','c49ead7a91a57126905ea9c0c5234993',false,'search_path=pg_catalog, extensions, public, private'),
+      ('public','rewardloop_create_campaign_internal','7536904b9391f87c0ccabb1d54b67957',true,'search_path=pg_catalog, extensions, public, private'),
+      ('public','rewardloop_issue_qr_batch_internal','d49267006831ec38efe7dd31848dc89b',false,'search_path=pg_catalog, extensions, public, private'),
+      ('public','rewardloop_redeem_internal','11abc0cb80825d0296726765b0b7360c',false,'search_path=pg_catalog, extensions, public, private'),
+      ('public','rewardloop_resolve_redemption_internal','8946c7c4992af47872e40dc3fc4ee60f',true,'search_path=pg_catalog, extensions, public, private'),
+      ('public','rewardloop_revoke_qr_batch_internal','5bee22a66d052403231df626c6ae4e33',false,'search_path=pg_catalog, extensions, public, private'),
+      ('public','rewardloop_set_campaign_status_internal','9bf11777ff2af089fb72618e5fce6c13',true,'search_path=pg_catalog, extensions, public, private'),
+      ('public','rewardloop_verify_partner_internal','68a505d1495a26cdd414352fe1fdea6a',false,'search_path=pg_catalog, extensions, public, private')
+    )
+    SELECT 1 FROM expected e
+    LEFT JOIN pg_namespace n ON n.nspname=e.schema_name
+    LEFT JOIN pg_proc p ON p.pronamespace=n.oid AND p.proname=e.function_name AND p.prokind IN ('f','p')
+    WHERE p.oid IS NULL OR md5(p.prosrc)<>e.body_md5 OR p.prosecdef<>e.is_security_definer
+       OR coalesce(array_to_string(p.proconfig,','),'')<>e.config
+  ) THEN
+    RAISE EXCEPTION 'baseline function body/security configuration differs from captured live function snapshot';
+  END IF;
+
   -- Compare effective function execution grants at the historical baseline. The private schema
   -- itself must remain inaccessible to client roles; later hardening migrations narrow function ACLs.
   IF has_schema_privilege('anon','private','USAGE')
@@ -161,6 +182,6 @@ BEGIN
   DROP SEQUENCE public.rewardloop_schema_parity_sequence_probe;
   DROP TABLE public.rewardloop_schema_parity_acl_probe;
 
-  RAISE NOTICE 'PASS: clean baseline matches live catalog fingerprints and default ACL behavior';
+  RAISE NOTICE 'PASS: clean baseline matches live catalog fingerprints, function definitions/security settings, and default ACL behavior';
 END
 $schema_parity$;

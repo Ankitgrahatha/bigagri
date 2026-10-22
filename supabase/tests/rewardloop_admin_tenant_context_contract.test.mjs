@@ -34,5 +34,5 @@ test("older deployed API falls back only for unknown_action and clearly warns wh
   assert.match(admin, /slug:"growta-rewardloop",name:"Growta RewardLoop"/);
   assert.match(admin, /tenantContextFallback\?`<div class="tenant-compat-warning" role="status">/);
   assert.match(admin, /server-side membership checks still apply/);
-  assert.match(admin, /\.eq\("user_id", user\.id\)[\s\S]*?\.eq\("status", "active"\)[\s\S]*?\.in\("role", \["brand_admin", "super_admin"\]\)/);
+  assert.match(api, /\.eq\("tenant_id", tenant\.id\)\.eq\("user_id", user\.id\)[\s\S]*?\.eq\("status", "active"\)[\s\S]*?\.in\("role", \["brand_admin", "super_admin"\]\)/);
 });

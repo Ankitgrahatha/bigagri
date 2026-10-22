@@ -1,5 +1,7 @@
--- Rate-limit brute-force guesses against unknown QR tokens.
--- Store only actor/request/time metadata; never store the submitted token or its raw value.
+-- Rate-limit unknown QR token guesses while preserving atomic campaign budget enforcement,
+-- actor+QR-bound idempotency, and campaign-level serialization from the preceding migration.
+-- Store only actor/request/time metadata; never persist the submitted token.
+
 CREATE TABLE IF NOT EXISTS private.claim_failed_attempts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   actor_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -12,16 +14,6 @@ CREATE INDEX IF NOT EXISTS claim_failed_attempts_actor_time_idx
 
 ALTER TABLE private.claim_failed_attempts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE private.claim_failed_attempts FROM PUBLIC, anon, authenticated, service_role;
-
--- Bind a tenant-scoped claim request ID to both its owning actor and QR resource.
--- A tenant/request key cannot be replayed across actors or across different QRs.
--- Advisory lock serializes the tenant/request key before QR row locking.
--- This migration changes no existing claims, ledger entries, QR status, or balances.
-
--- Scope claim idempotency replay to the authenticated actor's own partner.
--- Previously a replay key was looked up only by tenant + request UUID and could
--- return another partner's claim ID/points if the same request UUID was reused.
--- This migration changes no existing claim, ledger, QR, or balance rows.
 
 create or replace function private.claim_qr(
   p_actor_user_id uuid,
@@ -39,6 +31,10 @@ declare
   v_qr public.qr_codes%rowtype;
   v_partner public.partners%rowtype;
   v_campaign public.campaigns%rowtype;
+  v_point_value_minor_units integer;
+  v_point_value_currency text;
+  v_existing_spend bigint := 0;
+  v_liability_minor_units bigint := 0;
   v_claim_id uuid;
   v_existing public.claims%rowtype;
 begin
@@ -55,8 +51,8 @@ begin
   limit 1;
   if not found then
     -- Rate-limit unknown-token guesses per authenticated actor without storing the token.
-    -- The actor lock serializes failed-attempt accounting so parallel requests cannot
-    -- bypass the threshold. Successful QR claims are not counted as failed attempts.
+    -- Serialize failed-attempt accounting so parallel invalid requests cannot bypass
+    -- the threshold. Successful claims are not counted as failed attempts.
     perform pg_advisory_xact_lock(
       hashtextextended('claim-invalid-rate:' || p_actor_user_id::text, 0)
     );
@@ -162,9 +158,11 @@ begin
     return jsonb_build_object('ok',false,'outcome','campaign_missing','points_awarded',0);
   end if;
 
+  -- This row lock serializes all award decisions for the campaign.
   select c.* into v_campaign
   from public.campaigns c
-  where c.id=v_qr.campaign_id and c.tenant_id=v_qr.tenant_id;
+  where c.id=v_qr.campaign_id and c.tenant_id=v_qr.tenant_id
+  for update;
   if not found or v_campaign.status<>'active'
      or (v_campaign.starts_at is not null and v_campaign.starts_at>now())
      or (v_campaign.ends_at is not null and v_campaign.ends_at<=now()) then
@@ -178,7 +176,48 @@ begin
     return jsonb_build_object('ok',false,'outcome','no_reward_value','points_awarded',0);
   end if;
 
-  update public.qr_codes set status='claimed',claimed_at=now()
+  SELECT s.point_value_minor_units, s.point_value_currency::text
+    INTO v_point_value_minor_units, v_point_value_currency
+    FROM public.rewardloop_admin_settings s
+   WHERE s.tenant_id = v_qr.tenant_id
+   FOR SHARE;
+
+  IF v_campaign.budget_minor_units > 0
+     AND (v_point_value_minor_units IS NULL OR v_point_value_currency IS NULL) THEN
+    RETURN jsonb_build_object('ok',false,'outcome','budget_configuration_required','points_awarded',0);
+  END IF;
+
+  IF v_campaign.budget_minor_units > 0
+     AND upper(trim(v_point_value_currency)) <> upper(trim(v_campaign.currency::text)) THEN
+    RETURN jsonb_build_object('ok',false,'outcome','budget_currency_mismatch','points_awarded',0);
+  END IF;
+
+  IF v_point_value_minor_units IS NOT NULL
+     AND v_point_value_currency IS NOT NULL
+     AND upper(trim(v_point_value_currency)) = upper(trim(v_campaign.currency::text)) THEN
+    v_liability_minor_units := v_qr.points_value::bigint * v_point_value_minor_units::bigint;
+
+    SELECT COALESCE(sum(l.liability_minor_units), 0)
+      INTO v_existing_spend
+      FROM public.campaign_liability_ledger l
+     WHERE l.tenant_id = v_qr.tenant_id
+       AND l.campaign_id = v_campaign.id
+       AND l.counts_against_budget;
+
+    IF v_campaign.budget_minor_units > 0
+       AND v_existing_spend + v_liability_minor_units > v_campaign.budget_minor_units THEN
+      RETURN jsonb_build_object(
+        'ok',false,
+        'outcome','campaign_budget_exhausted',
+        'points_awarded',0,
+        'budget_minor_units',v_campaign.budget_minor_units,
+        'spent_minor_units',v_existing_spend,
+        'requested_liability_minor_units',v_liability_minor_units
+      );
+    END IF;
+  END IF;
+
+    update public.qr_codes set status='claimed',claimed_at=now()
   where id=v_qr.id and status='active';
   if not found then
     insert into public.scan_events(tenant_id,qr_code_id,actor_user_id,outcome,request_id,app_version,device_ref_hash)
@@ -198,10 +237,22 @@ begin
   values(v_qr.tenant_id,v_qr.id,p_actor_user_id,'accepted',p_request_id,p_app_version,p_device_ref_hash)
   on conflict(tenant_id,request_id) do nothing;
 
+  IF v_point_value_minor_units IS NOT NULL
+     AND v_point_value_currency IS NOT NULL
+     AND upper(trim(v_point_value_currency)) = upper(trim(v_campaign.currency::text)) THEN
+    INSERT INTO public.campaign_liability_ledger(
+      tenant_id, campaign_id, claim_id, points_awarded,
+      point_value_minor_units, point_value_currency, liability_minor_units, counts_against_budget
+    ) VALUES (
+      v_qr.tenant_id, v_campaign.id, v_claim_id, v_qr.points_value,
+      v_point_value_minor_units, upper(trim(v_point_value_currency)),
+      v_liability_minor_units, v_campaign.budget_minor_units > 0
+    );
+  END IF;
+
   insert into public.audit_logs(tenant_id,actor_user_id,action,entity_type,entity_id,request_id,after_data)
   values(v_qr.tenant_id,p_actor_user_id,'qr_claim_accepted','claim',v_claim_id,p_request_id,jsonb_build_object('points_awarded',v_qr.points_value,'campaign_id',v_qr.campaign_id));
 
   return jsonb_build_object('ok',true,'outcome','accepted','claim_id',v_claim_id,'points_awarded',v_qr.points_value,'replayed',false);
 end
 $function$;
-

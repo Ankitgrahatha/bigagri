@@ -25,7 +25,7 @@ test("product RPC validates admin membership, tenant status, SKU uniqueness and 
 });
 
 test("admin UI scopes product creation to selected tenant and prevents duplicate submission", () => {
-  assert.match(admin, /"create_product"(?:, "set_product_status")?\]\);/);
+  assert.match(admin, /"create_product"(?:,"set_product_status")?\]\);/);
   assert.match(admin, /id="product-create"/);
   assert.match(admin, /call\("create_product",\{sku,name,pack_size\}\)/);
   assert.match(admin, /button\.disabled=true/);

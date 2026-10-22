@@ -4,6 +4,7 @@ import test from "node:test";
 
 const api = readFileSync(new URL("../functions/rewardloop-api/index.ts", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../migrations/20261022200000_audited_product_creation.sql", import.meta.url), "utf8");
+const admin = readFileSync(new URL("../../admin.js", import.meta.url), "utf8");
 
 test("product creation is an authenticated admin API action routed through the privileged RPC", () => {
   assert.match(api, /"set_point_value",\s*"create_product"/);
@@ -21,4 +22,12 @@ test("product RPC validates admin membership, tenant status, SKU uniqueness and 
   assert.match(migration, /'product_created'/);
   assert.match(migration, /REVOKE ALL PRIVILEGES ON FUNCTION public\.rewardloop_create_product_internal/);
   assert.match(migration, /TO service_role/);
+});
+
+test("admin UI scopes product creation to selected tenant and prevents duplicate submission", () => {
+  assert.match(admin, /"create_product"\]\);/);
+  assert.match(admin, /id="product-create"/);
+  assert.match(admin, /call\("create_product",\{sku,name,pack_size\}\)/);
+  assert.match(admin, /button\.disabled=true/);
+  assert.match(admin, /sku_exists/);
 });

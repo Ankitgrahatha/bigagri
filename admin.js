@@ -17,14 +17,21 @@ function renderPartnerRows(){
   if(!rows.length)return '<tr><td colspan="4">No matching partners.</td></tr>';
   return rows.map(p=>`<tr><td><strong>${esc(p.display_name)}</strong><br>${esc(p.phone_e164||"No phone")}</td><td>${badge(p.verification_status)}</td><td>${esc(new Date(p.created_at).toLocaleDateString())}</td><td><div class="admin-actions"><button class="secondary-button" data-verify="${esc(p.id)}" data-status="verified">Verify</button><button class="danger-button" data-verify="${esc(p.id)}" data-status="rejected">Reject</button></div></td></tr>`).join("");
 }
+function csvCell(value){
+  let text=String(value??"");
+  // Prevent spreadsheet formula execution from untrusted names, SKU values or notes.
+  // Prefix an apostrophe before leading whitespace/control characters and formula sigils.
+  if(/^[\u0000-\u0020]*[=+\-@]/.test(text))text="'"+text;
+  return '"'+text.replace(/"/g,'""')+'"';
+}
 function downloadCsv(filename,rows){
-  const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+  const csv=rows.map(row=>row.map(csvCell).join(",")).join("\r\n");
   const url=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
   const a=document.createElement("a");a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function qrExportCsv(batch){
   const rows=[["ordinal","qr_id","token","qr_payload"],...batch.codes.map(c=>[c.ordinal,c.qr_id,c.token,c.qr_payload])];
-  return "\uFEFF"+rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+  return "\uFEFF"+rows.map(row=>row.map(csvCell).join(",")).join("\r\n");
 }
 function downloadPendingQrExport(){
   if(!pendingQrExport||!Array.isArray(pendingQrExport.codes)||!pendingQrExport.codes.length){toast("No QR export is available in this browser session.",true);return;}

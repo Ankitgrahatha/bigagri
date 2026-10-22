@@ -14,6 +14,12 @@ const API_FUNCTION = "rewardloop-api";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
+function storefrontRedirectUrl(extraParams = {}) {
+  const url = new URL("/", window.location.origin);
+  if (TENANT_SLUG !== DEFAULT_TENANT_SLUG) url.searchParams.set("tenant", TENANT_SLUG);
+  for (const [key, value] of Object.entries(extraParams)) url.searchParams.set(key, value);
+  return url.toString();
+}
 
 const i18n = {
   hi: {
@@ -194,7 +200,7 @@ function renderAuth() {
     if (!email) { toast(t("email")+" required", "error"); emailInput?.focus(); return; }
     resend.disabled = true;
     try {
-      const { error } = await supabase.auth.resend({ type:"signup", email, options:{ emailRedirectTo:window.location.origin } });
+      const { error } = await supabase.auth.resend({ type:"signup", email, options:{ emailRedirectTo:storefrontRedirectUrl() } });
       if (error) throw error;
       const message = document.getElementById("auth-message");
       if (message) message.textContent = t("confirmationResent");
@@ -215,7 +221,7 @@ async function handleAuth(event) {
   try {
     if (state.authMode === "recover") {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/?auth=reset`
+        redirectTo: storefrontRedirectUrl({ auth: "reset" })
       });
       if (error) throw error;
       const message = document.getElementById("auth-message");
@@ -236,7 +242,7 @@ async function handleAuth(event) {
       const displayName = String(fd.get("name") || "").trim();
       const phone = String(fd.get("phone") || "").trim();
       if (phone && !/^\+[1-9]\d{7,14}$/.test(phone)) throw new Error("phone_must_be_e164");
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin, data: { display_name: displayName, preferred_locale: state.lang } } });
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: storefrontRedirectUrl(), data: { display_name: displayName, preferred_locale: state.lang } } });
       if (error) throw error;
       if (data.session) {
         state.session = data.session;

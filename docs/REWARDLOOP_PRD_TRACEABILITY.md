@@ -1,6 +1,6 @@
 # RewardLoop PRD Traceability and Build Status
 
-Last reviewed: 2026-10-21
+Last reviewed: 2026-10-22
 Repository: `Ankitgrahatha/bigagri` (branch `main`)
 Production app: `https://bigagri.vercel.app/`
 Supabase project: `guhhuqxrobhuumwrypnc`
@@ -16,20 +16,36 @@ This repository implements **Growta RewardLoop**, a multi-tenant agricultural lo
 |---|---|---|
 | Web PWA shell | `index.html`, `app.js`, `styles.css`, `manifest.webmanifest`, `sw.js` exist; Hindi/English toggle and QR camera/manual entry are implemented in client code | Implemented in code; device/browser E2E not independently verified here |
 | Authentication | Supabase Auth email/password; signup/profile flow present | Partial; production email delivery and successful user verification remain release blockers |
-| Tenant foundation | Supabase tenant and membership tables exist; tenant slug is `growta-rewardloop` | Partial; test cross-tenant isolation and all RLS policies before production |
+| Tenant foundation | Supabase tenant and membership tables exist; tenant slug is `growta-rewardloop`; public catalog is opt-in per tenant | Improved: isolated tests prove private tenant catalog rows are hidden from anon and authenticated; production migration deployment and all write/export isolation tests remain open |
 | Partner onboarding | Partner profiles and admin verification actions exist | Implemented in code; full role/permission E2E still required |
 | QR issuance | Admin UI issues batches and downloads raw tokens once; backend RPC is called by Edge Function | Implemented in code; printing workflow, token custody and concurrency/replay tests remain |
 | QR claim | Authenticated Edge Function delegates to database RPC; request UUID supplied for idempotency | Implemented in code; verify atomic transaction, uniqueness, race tests, and event logging in live DB |
-| Points ledger | `points_ledger` table exists and is documented append-only | Partial until constraints, RPC behavior, RLS and reversal tests are verified |
+| Points ledger | Database trigger blocks UPDATE/DELETE/TRUNCATE in clean PostgreSQL CI; compensation uses ledger entries | Isolated behavior tests pass; production migration deployment and live reconciliation remain open |
 | Campaigns | Draft creation, date validation, explicit activation/pause/archive and demo campaign activation guard exist in code/migrations | Implemented in code; boundary tests and campaign budget enforcement still required |
-| Rewards/redemptions | Catalogue and redemption UI/actions exist; cancellation/refund and finite-stock restoration are described in repo docs/code | Partial until concurrent redemption, retries, reconciliation and ledger invariants pass tests |
+| Rewards/redemptions | Atomic reservation/replay tests; parallel redemption tests; cancellation refund uses valid redeem_release enum; cancellation/fulfillment accounting tested | Isolated tests pass for one-time refund/stock restoration and fulfilled redemption finality; production deployment and real provider reconciliation remain open |
 | Brand multi-tenancy | Tenant ID is present on core tables and server-side tenant selection is used | Partial; current app has a single configured tenant slug, so configurable tenant onboarding and cross-tenant tests are not complete |
 | Admin settings | `admin-settings.html/js` and `rewardloop-admin-settings` function exist | Partial/blocked: preferences can be stored, but SMTP/Auth settings are not applied to Supabase Auth; test-email action is a placeholder |
 | Analytics/fraud | Basic admin counters and CSV exports exist | Partial; risk case workflow, budget/liability analytics, campaign profitability and advanced fraud review not implemented/verified |
 | Reward fulfilment integrations | No verified provider integration in the inspected repository | Not started / open dependency |
 | Billing and SaaS plans | No verified subscription billing implementation in inspected repository | Not started |
 | Monitoring/operations | Production notes exist; full alerting, backup/restore drill and incident playbooks not verified | Partial |
-| Automated test suite / CI gates | No test suite or CI configuration was visible in the inspected root listing | Not verified; create before production launch |
+| Automated test suite / CI gates | GitHub Actions quality gate, smoke tests, legacy-route guard, and disposable PostgreSQL migration/transaction/concurrency suite | Implemented in repository; tests must pass on the final merged commit and do not prove production migrations have been applied |
+
+## 2026-10-22 verified progress
+
+The following items are now present in the repository and have passed isolated GitHub Actions checks; they are not a substitute for production release verification:
+
+- Clean PostgreSQL rebuild from a schema-only baseline, timestamp markers, and idempotent local demo seed.
+- Tenant opt-in for public catalog reads, with private-tenant isolation checks for both `anon` and `authenticated`.
+- Least-privilege client grants on reward-bearing tables and explicit internal RPC grants.
+- Default ACL hardening for newly-created tables, sequences, and functions.
+- Append-only points ledger trigger and tests rejecting UPDATE, DELETE, and TRUNCATE.
+- Parallel claim/redemption tests for same-key replay, QR contention, balance serialization, points totals, and stock accounting.
+- Redemption cancellation/rejection compensation uses the deployed enum value `redeem_release`; isolated tests cover one-time refund, stock restoration, fulfillment finality, and rejection of a NULL resolution status.
+
+Evidence links: [PR #24 migration rebuild](https://github.com/Ankitgrahatha/bigagri/pull/24), [PR #25 default ACLs](https://github.com/Ankitgrahatha/bigagri/pull/25), [PR #26 refund enum fix](https://github.com/Ankitgrahatha/bigagri/pull/26), [PR #42 null-status guard](https://github.com/Ankitgrahatha/bigagri/pull/42), and [isolated database CI](https://github.com/Ankitgrahatha/bigagri/actions/workflows/rewardloop-claim-replay-db.yml).
+
+**Production boundary:** the remote project still reports the original 13 migration versions. The new baseline and later security migrations have not been pushed to production. Do not run the baseline DDL against the live project; complete the documented schema comparison and history-only repair gate first.
 
 ## Requirement-to-implementation matrix
 
@@ -41,18 +57,18 @@ This repository implements **Growta RewardLoop**, a multi-tenant agricultural lo
 | QR-001 | Unique random code per eligible pack | Implemented in code | Entropy/token hash review; issuance audit; one-time download custody procedure |
 | QR-002 | Atomic one-time claim | Implemented in code; not yet verified end-to-end | Parallel claim test proving one entitlement and one credit only |
 | QR-003 | Revoke issued unclaimed code batch | Implemented in code | Test revoked codes fail; already-posted claims remain auditable |
-| LEDGER-001 | Immutable points accounting | Partial | Database privilege review, append-only enforcement, compensating-entry tests |
-| LEDGER-002 | Claim and point credit commit atomically | Required; verify database RPC | Injected-failure and concurrency tests proving no partial write |
+| LEDGER-001 | Immutable points accounting | Isolated CI verified | Database trigger blocks update/delete/truncate; compensating entries and redemption refund accounting pass disposable PostgreSQL tests; production deployment remains pending |
+| LEDGER-002 | Claim and point credit commit atomically | Isolated concurrency coverage present | Parallel same-key and different-key claim tests verify one accepted credit; production migration deployment and live E2E remain pending |
 | CAMPAIGN-001 | Versioned, dated eligibility and explicit activation | Partial | Rule versioning/immutability and start/end boundary tests |
 | BUDGET-001 | Campaign reward liability stays within approved budget | Not verified | Atomic budget reservation and exhaustion tests; exact accounting definition |
-| REDEEM-001 | Reserve points once and fulfil safely | Partial | Concurrent requests, provider timeout, idempotent retry, failure/release/reconciliation tests |
+| REDEEM-001 | Reserve points once and fulfil safely | Isolated CI verified for database reservation/refund/fulfillment | Concurrent idempotency, balance serialization, cancellation refund and stock restore tests pass; external provider timeout/reconciliation and production deployment remain open |
 | ADMIN-001 | Brand admin can operate only authorized tenant | Partial | Positive and negative authorization tests; no client-supplied tenant ID as authority |
 | EMAIL-001 | Confirmation and recovery emails deliver reliably | Blocked | Configured SMTP/provider, verified domain, deliverability tests, expired/used link tests |
 | EMAIL-002 | Admin console can change live Auth email settings | Blocked | Server-only Management API integration, secure secret storage, validation and rollback tests |
 | LOCALE-001 | Rural-friendly regional language UX | Partial | Hindi/English coverage review, error/empty/loading states, low-bandwidth Android testing |
 | FRAUD-001 | Suspicious claims can be reviewed and resolved | Partial | Case workflow, reasoned decisions, audit history, false-positive handling |
 | ANALYTICS-001 | Brand can measure engagement, redemption cost and suspicious activity | Partial | Defined metric formulas, tenant-scoped exports and reconciled sample reports |
-| OPS-001 | Production release is reproducible and recoverable | Partial | CI checks, backup/restore drill, deployment rollback, monitoring and incident runbook |
+| OPS-001 | Production release is reproducible and recoverable | Partial: clean PostgreSQL rebuild and CI gates implemented | Migration chain and seed rebuild are tested in CI; production history reconciliation, backup/restore drill, deployment rollback and monitoring remain open |
 
 ## Immediate build order
 

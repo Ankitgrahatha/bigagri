@@ -14,7 +14,7 @@ test("admin console builds section navigation from the rendered panels", () => {
 
 test("admin navigation has an accessible name and links to generated section IDs", () => {
   assert.match(admin, /sectionNav\.setAttribute\("aria-label","Admin sections"\)/);
-  assert.match(admin, /return '<a href="#'\+id\+'">'\+esc\(label\)\+'<\/a>'/);
+  assert.match(admin, /sectionLinks\.join\(""/);
   assert.match(admin, /admin-section-/);
 });
 

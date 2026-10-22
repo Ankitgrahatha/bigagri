@@ -22,6 +22,59 @@ const corsHeaders = {
   "Cache-Control": "no-store",
 };
 
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
+
+async function readJsonBody(
+  req: Request,
+): Promise<{ body: Record<string, unknown> | null; error?: "content_type_required" | "body_too_large" | "invalid_json" }> {
+  const contentType = req.headers.get("Content-Type") ?? "";
+  if (!/^application\\/json(?:\\s*;|$)/i.test(contentType)) {
+    return { body: null, error: "content_type_required" };
+  }
+
+  const declaredLength = req.headers.get("Content-Length");
+  if (declaredLength !== null) {
+    if (!/^\\d+$/.test(declaredLength) || Number(declaredLength) > MAX_REQUEST_BODY_BYTES) {
+      return { body: null, error: "body_too_large" };
+    }
+  }
+  if (!req.body) return { body: null, error: "invalid_json" };
+
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_REQUEST_BODY_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return { body: null, error: "body_too_large" };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { body: null, error: "invalid_json" };
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { body: null, error: "invalid_json" };
+    }
+    return { body: parsed as Record<string, unknown> };
+  } catch {
+    return { body: null, error: "invalid_json" };
+  }
+}
+
 function respond(status: number, payload: Record<string, unknown>, origin?: string | null) {
   const headers = new Headers(corsHeaders);
   if (origin && ALLOWED_ORIGINS.has(origin)) headers.set("Access-Control-Allow-Origin", origin);
@@ -120,7 +173,13 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const body = await req.json().catch(() => ({}));
+    const parsedBody = await readJsonBody(req);
+    if (parsedBody.error) {
+      const status = parsedBody.error === "body_too_large" ? 413
+        : parsedBody.error === "content_type_required" ? 415 : 400;
+      return reply(status, { ok: false, error: parsedBody.error });
+    }
+    const body = parsedBody.body!;
     const action = typeof body.action === "string" ? body.action : "";
 
     const ratePolicy: Record<string, { limit: number; windowSeconds: number }> = {

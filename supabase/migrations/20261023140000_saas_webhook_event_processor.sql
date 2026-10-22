@@ -367,12 +367,26 @@ BEGIN
       RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
     END IF;
 
-    IF v_payment_attempt.status = 'captured' THEN
+    IF v_payment_attempt.status IN ('captured', 'refunded', 'partially_refunded') THEN
       UPDATE private.saas_payment_webhook_events
       SET status = 'processed', processing_result = 'stale',
           processed_at = now(), processing_started_at = NULL, last_error_code = NULL
       WHERE id = p_event_id;
       RETURN jsonb_build_object('ok', true, 'result', 'stale');
+    END IF;
+    IF v_payment_attempt.status IN ('initiated', 'authorized') THEN
+      UPDATE private.saas_payment_attempts
+      SET status = 'failed', failure_code = 'provider_payment_failed', updated_at = now()
+      WHERE id = v_payment_attempt.id
+      RETURNING * INTO v_payment_attempt;
+    END IF;
+    IF v_payment_attempt.status <> 'failed' THEN
+      v_failure_code := 'payment_id_conflict';
+      UPDATE private.saas_payment_webhook_events
+      SET status = 'failed', processing_started_at = NULL, last_error_code = v_failure_code,
+          processing_result = NULL, processed_at = NULL
+      WHERE id = p_event_id;
+      RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
     END IF;
 
     UPDATE private.saas_tenant_subscriptions

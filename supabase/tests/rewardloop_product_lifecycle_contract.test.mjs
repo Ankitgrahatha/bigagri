@@ -7,7 +7,7 @@ const admin = readFileSync(new URL("../../admin.js", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../migrations/20261022203000_audited_product_lifecycle.sql", import.meta.url), "utf8");
 
 test("product lifecycle is routed through the common selected-tenant admin gate", () => {
-  assert.match(api, /"create_product", "set_product_status"\]\.includes\(action\)/);
+  assert.match(api, /"create_product", "set_product_status", "update_product"\]\.includes\(action\)/);
   assert.match(api, /action === "set_product_status"/);
   assert.match(api, /admin\.rpc\("rewardloop_set_product_status_internal"/);
   assert.match(api, /p_actor_user_id:\s*user\.id/);

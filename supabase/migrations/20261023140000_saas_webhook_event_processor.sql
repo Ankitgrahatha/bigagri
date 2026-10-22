@@ -85,7 +85,7 @@ BEGIN
     RETURN jsonb_build_object('ok', true, 'result', 'ignored');
   END IF;
 
-  IF coalesce(v_event_payload->>'created_at', '') !~ '^[0-9]{9,10} THEN
+  IF coalesce(v_event_payload->>'created_at', '') !~ '^[0-9]{9,10}$' THEN
     v_failure_code := 'invalid_event_timestamp';
     UPDATE private.saas_payment_webhook_events
     SET status = 'failed', processing_started_at = NULL, last_error_code = v_failure_code,
@@ -199,8 +199,8 @@ BEGIN
       RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
     END IF;
 
-    IF coalesce(v_subscription_entity->>'current_start', '') !~ '^[0-9]{1,12}$'
-       OR coalesce(v_subscription_entity->>'current_end', '') !~ '^[0-9]{1,12}$' THEN
+    IF coalesce(v_subscription_entity->>'current_start', '') !~ '^[0-9]{9,10}$'
+       OR coalesce(v_subscription_entity->>'current_end', '') !~ '^[0-9]{9,10}$' THEN
       v_failure_code := 'invalid_billing_period';
       UPDATE private.saas_payment_webhook_events
       SET status = 'failed', processing_started_at = NULL, last_error_code = v_failure_code,
@@ -575,8 +575,8 @@ GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_event_internal(uui
       RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
     END IF;
 
-    IF coalesce(v_subscription_entity->>'current_start', '') !~ '^[0-9]{1,12}$'
-       OR coalesce(v_subscription_entity->>'current_end', '') !~ '^[0-9]{1,12}$' THEN
+    IF coalesce(v_subscription_entity->>'current_start', '') !~ '^[0-9]{9,10}$'
+       OR coalesce(v_subscription_entity->>'current_end', '') !~ '^[0-9]{9,10}$' THEN
       v_failure_code := 'invalid_billing_period';
       UPDATE private.saas_payment_webhook_events
       SET status = 'failed', processing_started_at = NULL, last_error_code = v_failure_code,
@@ -790,8 +790,8 @@ GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_event_internal(uui
       RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
     END IF;
 
-    IF coalesce(v_subscription_entity->>'current_start', '') !~ '^[0-9]{1,12}$'
-       OR coalesce(v_subscription_entity->>'current_end', '') !~ '^[0-9]{1,12}$' THEN
+    IF coalesce(v_subscription_entity->>'current_start', '') !~ '^[0-9]{9,10}$'
+       OR coalesce(v_subscription_entity->>'current_end', '') !~ '^[0-9]{9,10}$' THEN
       v_failure_code := 'invalid_billing_period';
       UPDATE private.saas_payment_webhook_events
       SET status = 'failed', processing_started_at = NULL, last_error_code = v_failure_code,
@@ -1127,8 +1127,8 @@ GRANT EXECUTE ON FUNCTION public.process_saas_payment_webhook_event_internal(uui
       RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
     END IF;
 
-    IF coalesce(v_subscription_entity->>'current_start', '') !~ '^[0-9]{1,12}$'
-       OR coalesce(v_subscription_entity->>'current_end', '') !~ '^[0-9]{1,12}$' THEN
+    IF coalesce(v_subscription_entity->>'current_start', '') !~ '^[0-9]{9,10}$'
+       OR coalesce(v_subscription_entity->>'current_end', '') !~ '^[0-9]{9,10}$' THEN
       v_failure_code := 'invalid_billing_period';
       UPDATE private.saas_payment_webhook_events
       SET status = 'failed', processing_started_at = NULL, last_error_code = v_failure_code,

@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 const db=createClient("https://guhhuqxrobhuumwrypnc.supabase.co","sb_publishable_6dr2KACqmGBM2AWZS6NTDw_1Kf3e8ru",{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-const root=document.getElementById("admin-app"),out=document.getElementById("admin-toast"),signout=document.getElementById("admin-signout");let data=null,partnerQuery="",partnerStatus="all",selectedTenantSlug="",adminTenants=[],tenantContextFallback=false,pendingQrExport=null;const ADMIN_SCOPED_ACTIONS=new Set(["admin_dashboard","admin_audit_logs","verify_partner","issue_qr_batch","revoke_qr_batch","resolve_redemption","set_campaign_status","create_campaign","set_point_value","create_product","set_product_status","update_product"]);const pages={partners:0,products:0,campaigns:0,batches:0,redemptions:0,audit:0};
+const root=document.getElementById("admin-app"),out=document.getElementById("admin-toast"),signout=document.getElementById("admin-signout");let data=null,partnerQuery="",partnerStatus="all",selectedTenantSlug="",adminTenants=[],tenantContextFallback=false,pendingQrExport=null;const ADMIN_SCOPED_ACTIONS=new Set(["admin_dashboard","admin_audit_logs","admin_record_export","verify_partner","issue_qr_batch","revoke_qr_batch","resolve_redemption","set_campaign_status","create_campaign","set_point_value","create_product","set_product_status","update_product"]);const pages={partners:0,products:0,campaigns:0,batches:0,redemptions:0,audit:0};
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toast(s,bad=false){const e=document.createElement("div");e.className="toast"+(bad?" error":"");e.textContent=s;out.appendChild(e);setTimeout(()=>e.remove(),4000)}
 async function call(action,payload={}){const tenantScope=ADMIN_SCOPED_ACTIONS.has(action)&&selectedTenantSlug?{tenant_slug:selectedTenantSlug}:{};const {data,error}=await db.functions.invoke("rewardloop-api",{body:{action,...tenantScope,...payload}});if(error){let message=error.message||"Request failed";try{const body=await error.context.clone().json();if(typeof body?.error==="string")message=body.error}catch{}throw new Error(message)}if(data?.ok===false)throw new Error(data.error||"Request failed");return data}
@@ -128,12 +128,29 @@ const updatePartnerRows=()=>{const body=document.getElementById("partner-rows");
 if(partnerSearch)partnerSearch.addEventListener("input",()=>{partnerQuery=partnerSearch.value;updatePartnerRows()});
 if(partnerStatusSelect)partnerStatusSelect.addEventListener("change",()=>{partnerStatus=partnerStatusSelect.value;updatePartnerRows()});
 const exportPartners=document.getElementById("export-partners");
-if(exportPartners)exportPartners.addEventListener("click",()=>{const rows=data.partners.filter(p=>{const q=partnerQuery.trim().toLowerCase();return (!q||[p.display_name,p.phone_e164,p.role,p.id].some(v=>String(v||"").toLowerCase().includes(q)))&&(partnerStatus==="all"||p.verification_status===partnerStatus)});downloadCsv("growta-partners-"+new Date().toISOString().slice(0,10)+".csv",[["partner_id","display_name","phone","role","verification_status","created_at"],...rows.map(p=>[p.id,p.display_name,p.phone_e164,p.role,p.verification_status,p.created_at])]);toast("Current-page partner CSV downloaded.");});
+if(exportPartners)exportPartners.addEventListener("click",async()=>{
+  const rows=data.partners.filter(p=>{const q=partnerQuery.trim().toLowerCase();return (!q||[p.display_name,p.phone_e164,p.role,p.id].some(v=>String(v||"").toLowerCase().includes(q)))&&(partnerStatus==="all"||p.verification_status===partnerStatus)});
+  exportPartners.disabled=true;
+  try{
+    await call("admin_record_export",{export_type:"partners",row_count:rows.length,page:pages.partners});
+    downloadCsv("growta-partners-"+new Date().toISOString().slice(0,10)+".csv",[["partner_id","display_name","phone","role","verification_status","created_at"],...rows.map(p=>[p.id,p.display_name,p.phone_e164,p.role,p.verification_status,p.created_at])]);
+    toast("Current-page partner CSV downloaded; export request audited.");
+  }catch(error){toast("Export was not started because audit logging failed: "+String(error?.message||error),true)}
+  finally{if(exportPartners.isConnected)exportPartners.disabled=false}
+});
 
 const verifyHandler=async b=>{let reason=null;if(b.dataset.status!=="verified"){reason=prompt("Reason (minimum 5 characters):")||"";if(reason.trim().length<5)return toast("A reason is required.",true)}if(!confirm("Change partner status to "+b.dataset.status+"?"))return;try{await call("verify_partner",{partner_id:b.dataset.verify,status:b.dataset.status,reason});toast("Partner status updated.");await refresh()}catch(e){toast(e.message,true)}};
 root.querySelectorAll("[data-verify]").forEach(b=>b.addEventListener("click",()=>verifyHandler(b)));
 const exportRedemptions=document.getElementById("export-redemptions");
-if(exportRedemptions)exportRedemptions.addEventListener("click",()=>{downloadCsv("growta-redemptions-"+new Date().toISOString().slice(0,10)+".csv",[["redemption_id","partner","phone","reward","points_cost","status","created_at","fulfilled_at"],...data.redemptions.map(r=>[r.id,r.partner_name,r.partner_phone,r.reward_name,r.points_cost,r.status,r.created_at,r.fulfilled_at])]);toast("Current-page redemption CSV downloaded.");});
+if(exportRedemptions)exportRedemptions.addEventListener("click",async()=>{
+  exportRedemptions.disabled=true;
+  try{
+    await call("admin_record_export",{export_type:"redemptions",row_count:data.redemptions.length,page:pages.redemptions});
+    downloadCsv("growta-redemptions-"+new Date().toISOString().slice(0,10)+".csv",[["redemption_id","partner","phone","reward","points_cost","status","created_at","fulfilled_at"],...data.redemptions.map(r=>[r.id,r.partner_name,r.partner_phone,r.reward_name,r.points_cost,r.status,r.created_at,r.fulfilled_at])]);
+    toast("Current-page redemption CSV downloaded; export request audited.");
+  }catch(error){toast("Export was not started because audit logging failed: "+String(error?.message||error),true)}
+  finally{if(exportRedemptions.isConnected)exportRedemptions.disabled=false}
+});
 root.querySelectorAll("[data-revoke]").forEach(b=>b.addEventListener("click",async()=>{const reason=prompt("Reason for revocation (minimum 5 characters):")||"";if(reason.trim().length<5)return toast("A reason is required.",true);if(!confirm("Revoke all unclaimed codes in this batch?"))return;try{await call("revoke_qr_batch",{batch_id:b.dataset.revoke,reason});toast("Batch revoked.");await refresh()}catch(e){toast(e.message,true)}}));
 root.querySelectorAll("[data-resolve]").forEach(b=>b.addEventListener("click",async()=>{
   const status=b.dataset.status;

@@ -93,12 +93,31 @@ jobs:
           print("PASS: Supabase TOML configuration")
           PY
 
-      - name: Apply all migrations from clean baseline in version order
+      - name: Apply schema baseline and historical markers in version order
         run: |
           set -euo pipefail
           for migration in supabase/migrations/*.sql; do
-            echo "==> $migration"
-            psql -v ON_ERROR_STOP=1 -f "$migration"
+            version="${migration##*/}"
+            version="${version%%_*}"
+            if [[ "$version" < "20261021170000" ]]; then
+              echo "==> baseline/history $migration"
+              psql -v ON_ERROR_STOP=1 -f "$migration"
+            fi
+          done
+
+      - name: Compare clean baseline catalog fingerprints to the captured live schema
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_live_schema_parity.test.sql
+
+      - name: Apply post-baseline security and feature migrations in version order
+        run: |
+          set -euo pipefail
+          for migration in supabase/migrations/*.sql; do
+            version="${migration##*/}"
+            version="${version%%_*}"
+            if [[ "$version" > "20261021121229" ]]; then
+              echo "==> post-baseline $migration"
+              psql -v ON_ERROR_STOP=1 -f "$migration"
+            fi
           done
 
       - name: Apply local seed data twice to verify idempotency

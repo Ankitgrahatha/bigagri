@@ -130,6 +130,9 @@ jobs:
       - name: Run public catalog tenant-isolation regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_public_catalog_isolation.test.sql
 
+      - name: Run partner data RLS isolation regression test
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_partner_data_rls_isolation.test.sql
+
       - name: Seed concurrency-only data in disposable database
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_concurrency_fixtures.sql
 

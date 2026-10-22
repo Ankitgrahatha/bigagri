@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 
 const api = readFileSync(new URL("../functions/rewardloop-api/index.ts", import.meta.url), "utf8");
 const admin = readFileSync(new URL("../../admin.js", import.meta.url), "utf8");
@@ -40,10 +41,16 @@ test("CSV downloads are blocked if the server cannot audit the export request", 
 });
 
 test("both admin CSV paths neutralize spreadsheet formula injection", () => {
-  assert.match(admin, /function csvCell\(value\)/);
-  assert.match(admin, /\[\\u0000-\\u0020\]\*\[=\+\\-@\]/);
+  assert.match(admin, /function csvCell\\(value\\)/);
   const standardCsv = admin.slice(admin.indexOf("function downloadCsv"), admin.indexOf("function qrExportCsv"));
   const qrCsv = admin.slice(admin.indexOf("function qrExportCsv"), admin.indexOf("function downloadPendingQrExport"));
-  assert.match(standardCsv, /row\.map\(csvCell\)/);
-  assert.match(qrCsv, /row\.map\(csvCell\)/);
+  assert.match(standardCsv, /row\\.map\\(csvCell\\)/);
+  assert.match(qrCsv, /row\\.map\\(csvCell\\)/);
+  const helperSource = admin.slice(admin.indexOf("function csvCell"), admin.indexOf("function downloadCsv"));
+  const csvCell = runInNewContext(helperSource + "\\ncsvCell");
+  assert.equal(csvCell("=1+1"), "\"'=1+1\"");
+  assert.equal(csvCell("  @SUM(A1:A2)"), "\"'  @SUM(A1:A2)\"");
+  assert.equal(csvCell("\\t=HYPERLINK(\\\"https://example.invalid\\\")"), "\"'\\t=HYPERLINK(\\\"https://example.invalid\\\")\"");
+  assert.equal(csvCell("plain, \\"quoted\\""), "\"plain, \\"quoted\\"\"");
 });
+

@@ -76,6 +76,19 @@ jobs:
           if missing:
               raise SystemExit(f"Refusing production release; required checks have not passed on {sha}: {missing}")
           print(f"PASS: required CI workflows passed on {sha}")
+
+          env_url = f"https://api.github.com/repos/{repo}/environments/production"
+          env_req = urllib.request.Request(env_url, headers={
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+          })
+          with urllib.request.urlopen(env_req, timeout=20) as response:
+              environment = json.load(response)
+          protection_rules = environment.get("protection_rules", [])
+          if not any(rule.get("type") == "required_reviewers" for rule in protection_rules):
+              raise SystemExit("Refusing production release: configure at least one required reviewer on the GitHub 'production' environment.")
+          print("PASS: production environment has a required-reviewer protection rule")
           PY
 
       - name: Link the exact production Supabase project

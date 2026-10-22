@@ -66,7 +66,7 @@ const sectionLinks=adminSections.map(section=>{
   const heading=section.querySelector("h2");
   if(!heading)return "";
   const label=heading.textContent.trim();
-  const slug=label.toLowerCase().normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const slug=label.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
   const id="admin-section-"+slug;
   section.id=id;
   return '<a href="#'+id+'">'+esc(label)+'</a>';

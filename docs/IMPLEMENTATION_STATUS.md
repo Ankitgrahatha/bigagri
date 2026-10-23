@@ -27,7 +27,8 @@ The following changes are merged in Git and covered by successful GitHub Actions
 - Redemption resolution explicitly rejects a NULL status at the database boundary; isolated SQL regression test passes.
 - Invalid QR token guesses are now rate-limited to 10 attempts per actor in a rolling 15-minute window. The private attempt table stores actor/request/time metadata only, never the submitted token. The migration is based on the latest budget-aware claim function so it preserves campaign liability enforcement.
 - Frontend release checks validate JavaScript entry points, service-worker syntax, HTML-referenced local assets, PWA manifest JSON, and icon existence.
-- Admin email settings now clearly state that they save preferences only; SMTP passwords are cleared after submission and are not persisted to the application settings table.
+- Admin email settings now clearly state that they save preferences only; SMTP passwords are cleared after submission and are not persisted to the application settings table. The test-email control is disabled until a real provider integration exists.
+- Manual risk/fraud case workflow is now implemented in source: tenant-scoped case records, admin-only create/list/update APIs, tenant-bound optional partner/claim/scan links, audited investigation/resolution, and terminal case states. Isolated SQL acceptance is pending this PR’s GitHub Actions run; it is not deployed to production.
 - The deployed admin settings function is now tracked in Git with tests for caller authentication, tenant admin authorization, field allowlisting and SMTP password non-persistence.
 - Six legacy Edge Function sources are archived outside the canonical deployment folder; none has been disabled.
 
@@ -45,7 +46,7 @@ Current CI evidence on main:
 - **Latest canonical Git main at this review:** `6dab7fa066e24f7c8903b47e1cdc2b741fdd05aa`, including PR #101 (billing release boundary/runbook), PR #102 (scheduler safety contract), and PR #103 (disabled unavailable test-email action and refreshed traceability), on top of PRs #93–#100.
 - **Local verification on this exact main:** 155 Node.js contract tests passed, 0 failed; browser JavaScript syntax checks and `git diff --check` passed. This local run does not imply every GitHub-hosted CI job or production deployment succeeded. The constituent PRs also passed quality gate, safe smoke, legacy-route guard, and isolated PostgreSQL regression CI.
 - **Vercel production alias:** the latest deployment returned by the Vercel API still targets commit `263d5982736101c1c5bf4baf943d0a228f05234f`, not the current main merge. A new production deployment attempt for the current main was rejected with HTTP 402 `api-deployments-free-per-day` (more than 100 deployments per 24 hours). Do not retry until the quota resets or the account owner resolves the plan limit.
-- **Live Supabase migration history:** read-only API reports exactly the original 13 historical versions. The repository now has 41 migration files, including the SaaS billing tables/RPCs and webhook-health migration; these later migrations have not been applied to production.
+- **Live Supabase migration history:** read-only API reports exactly the original 13 historical versions. The repository now has 42 migration files, including the SaaS billing tables/RPCs and webhook-health migration; these later migrations have not been applied to production.
 - **Live Supabase Edge Functions:** the project currently lists six legacy functions (`claim-qr`, `onboard-farmer`, `issue-qr-batch`, `revoke-qr-batch`, `redeem-reward`, `verify-partner`) plus `rewardloop-api` v10 and `rewardloop-admin-settings` v2. The new Razorpay/SaaS billing functions are not deployed.
 - **Live Auth security:** Supabase's security advisor still reports leaked-password protection disabled. Enable and verify it in the Supabase Auth settings before production launch.
 - The billing scheduler is committed in Git but intentionally disabled until repository variable `REWARDLOOP_BILLING_MONITOR_ENABLED=true` is set after the processor secret and deployed backend are verified.
@@ -74,7 +75,7 @@ Current CI evidence on main:
 
 ## Production blockers still open
 
-1. **Production migration history is unreconciled.** Live reports 13 historical versions while repository main contains 41 migration files. A fresh read-only fingerprint comparison now matches the checked-in baseline for the captured catalog categories, 16 function bodies/security settings, and 15 table ACLs. Do not run baseline DDL or repair history until backup/recovery readiness, migration-list review, explicit operator approval and the exact linked dry-run are recorded.
+1. **Production migration history is unreconciled.** Live reports 13 historical versions while repository main contains 42 migration files. A fresh read-only fingerprint comparison now matches the checked-in baseline for the captured catalog categories, 16 function bodies/security settings, and 15 table ACLs. Do not run baseline DDL or repair history until backup/recovery readiness, migration-list review, explicit operator approval and the exact linked dry-run are recorded.
 2. **SaaS billing schema and functions are not deployed.** Billing is implemented and CI-tested in source, but the production project has no billing migrations/functions yet. Required server-side test credentials, provider plan IDs and test-mode checkout/webhook/reconciliation evidence remain outstanding.
 3. **Auth leaked-password protection is disabled.** Enable it in Supabase Auth security settings and verify it with a controlled test before launch. Production email confirmation, SMTP delivery and privileged MFA policy are also not fully verified.
 4. **Six legacy Edge Functions remain active** with `verify_jwt=false` and manual authentication/CORS handling. Do not retire or replace them until source/client references and a longer privacy-safe traffic window have been reviewed and parity/rollback are documented.
@@ -128,7 +129,7 @@ PRs #91–#95 added the Razorpay SaaS billing foundation in source: versioned pl
 ## Other blockers and unverified areas
 
 - Production Auth email delivery and account confirmation are not verified; leaked-password protection remains disabled.
-- The settings console saves preferences only; it does not apply SMTP, Auth URL, signup policy or email templates to live Supabase Auth. The test-email control is now visibly disabled and states that test delivery is unavailable; no test message is sent.
+- The settings console saves preferences only; it does not apply SMTP, Auth URL, signup policy or email templates to live Supabase Auth. The test-email control is visibly disabled; no test message is sent. The manual risk/fraud case workflow is implemented in source but its migration and API are not deployed to production.
 - Current client/server configuration defaults to the `growta-rewardloop` tenant slug; customer self-service multi-tenant onboarding is not implemented.
 - Reward provider integration, formal fraud case handling, backup/restore drill and live alert delivery remain unverified or incomplete.
 - Sentry is not confirmed integrated in the inspected source. Redis infrastructure exists, but application integration and safe usage are not fully confirmed. A tenant-aware CMS/control plane is not complete.

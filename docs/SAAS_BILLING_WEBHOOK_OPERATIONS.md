@@ -58,3 +58,50 @@ Never commit secret values, put them in the PWA, or log webhook bodies/signature
 - Live provider credentials, production endpoint deployment, secret provisioning, scheduler configuration, or real-value payment testing. The billing portal UI and checkout endpoint are implemented in source but are not deployed or verified against a real Razorpay test account.
 
 Do not enable live payments until these items have a reviewed policy, verified test-mode evidence, reconciliation coverage, and a rollback/runbook.
+
+
+## Failed-payment and webhook incident runbook
+
+### Signals to alert on
+
+The scheduler/monitoring system must retain the HTTP status and the JSON counters from every `process-razorpay-webhooks` run, without retaining request secrets or customer/payment payloads. Create alerts with these minimum conditions:
+
+- **Critical — processor unavailable:** any non-2xx response from the processor endpoint for two consecutive scheduled runs, or no successful run for more than three minutes when running once per minute.
+- **High — exhausted events:** `exhausted > 0` on any successful response. These events have reached the retry cap and require operator review; a later successful batch does not mean they were repaired.
+- **High — backlog:** `failed > 0` for three consecutive runs, or the pending-event count grows for five consecutive observations. Investigate provider/schema mismatch and processor logs before manually replaying anything.
+- **High — customer payment failure:** a subscription transitions to `past_due` or a `payment.failed` event is processed. Notify the tenant's billing owner through an approved customer-support channel; do not include payment details in alert payloads.
+- **Warning — delivery/processing lag:** the oldest unprocessed webhook is older than five minutes. Confirm the scheduler is running and the processor secret is configured correctly.
+
+Thresholds are initial operational defaults, not provider guarantees. Tune them after observing test-mode volume and actual scheduler cadence. The processor response alone does not report the age of the oldest queued event, so that lag alert requires monitoring against the database through a separately authorized operator query/metric; do not expose private inbox tables to browser roles to implement it.
+
+### When a payment fails
+
+1. Confirm the webhook receipt was durably accepted and the event was processed (or inspect its retry/exhausted state through the approved operator-only database path).
+2. Verify the local subscription is `past_due` and that entitlements are denied. Do not manually grant access or change the subscription to `active` based solely on a browser redirect or a customer screenshot.
+3. Ask the tenant billing owner to complete payment through the provider-supported customer flow. Do not collect card/bank credentials, copy payment secrets into support tickets, or create a second subscription as a workaround.
+4. Verify the provider's subscription/payment state and correlate the provider subscription ID with the local tenant subscription before any manual repair. A captured payment must match the expected provider subscription, provider plan, amount, currency, and billing period before entitlements can be restored.
+5. If the provider and local state disagree, preserve the current fail-closed entitlement state and escalate to the billing/platform owner. Record the event ID, local subscription ID, provider subscription ID, timestamps, and redacted error code only.
+6. There is no automatic dunning, grace period, customer self-serve payment-retry workflow, refund workflow, or provider-side reconciliation/mutation in this implementation. Do not promise these capabilities to customers.
+
+### When events are exhausted or out of order
+
+- Do not delete inbox rows or reset attempt counters to make an alert disappear.
+- Inspect the event type, safe error code, attempt count, local subscription status, and matching provider IDs using an approved service-role/operator session. Never paste full webhook payloads into tickets or chat.
+- Correct the underlying configuration/schema issue first. Reprocess only through the supported worker/RPC after a reviewed, documented decision; preserve idempotency and the event's audit trail.
+- Out-of-order events may be intentionally marked stale. Confirm current provider state before taking any corrective action; an old `subscription.charged` event must not revive a terminal subscription.
+
+### Test-mode release evidence
+
+Before production approval, attach evidence for each of these cases to the release record:
+
+- Valid webhook signature accepted; invalid signature rejected; database receipt failure returns retryable non-2xx.
+- Duplicate event delivery creates one inbox event and does not duplicate payment attempts or ledger/entitlement changes.
+- Successful captured charge with matching subscription/plan/amount/currency activates the subscription; amount or currency mismatch does not.
+- `payment.failed` moves an eligible subscription to `past_due` and entitlement resolution denies access.
+- Out-of-order charge after cancellation/completion does not reactivate a terminal subscription.
+- Poison event reaches the bounded retry cap, appears as exhausted, and fires the high-severity alert.
+- Worker secret failure is rejected; scheduled worker recovers after secret/configuration repair.
+- Checkout timeout remains blocked until a real test-mode provider subscription is verified by the recovery flow; unknown provider ID, plan mismatch, notes mismatch, and unsupported status all fail closed.
+- Restore/reconciliation drill proves the operator can compare provider state with local state without granting access based on unverified evidence.
+
+Record the test account/project, timestamp, migration version, deployed function version, sanitized event IDs, and outcomes. Do not record credentials, webhook signatures, raw payloads, or full payment/customer data. A green unit/CI suite is not a substitute for this live test-mode evidence.

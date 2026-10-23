@@ -62,3 +62,16 @@ verify_jwt = false
 # and the scheduler only; never include it in client code or webhook payloads.
 [functions.process-razorpay-webhooks]
 verify_jwt = false
+
+# The gateway verifies the bearer JWT; the handler also resolves the user with
+# Supabase Auth before performing tenant membership checks. Credentials stay server-side.
+[functions.create-razorpay-subscription]
+verify_jwt = true
+
+# Read-only checkout reconciliation queue for active tenant super-admins.
+[functions.saas-checkout-reconciliation]
+verify_jwt = true
+
+# Tenant-scoped read-only plan/subscription view for the billing portal.
+[functions.saas-billing-portal]
+verify_jwt = true

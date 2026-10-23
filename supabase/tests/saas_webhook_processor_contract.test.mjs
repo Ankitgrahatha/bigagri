@@ -31,6 +31,9 @@ test("successful charges require captured payment, provider plan, tenant subscri
   assert.match(processor, /v_payment_currency <> v_subscription\.currency/i);
   assert.match(processor, /current_period_end = v_period_end/i);
   assert.match(processor, /INSERT INTO private\.saas_payment_attempts/i);
+  assert.match(processor, /provider_payment_id IS NULL[\s\S]*status = 'initiated'/i);
+  assert.match(processor, /SET provider_payment_id = v_provider_payment_id,[\s\S]*status = 'captured'/i);
+  assert.match(processor, /SET provider_payment_id = v_provider_payment_id,[\s\S]*status = 'failed'/i);
 });
 
 test("processor handles out-of-order events and does not reactivate terminal subscriptions", () => {

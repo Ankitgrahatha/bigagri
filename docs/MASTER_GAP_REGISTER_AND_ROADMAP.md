@@ -1,6 +1,6 @@
 # Growta RewardLoop — Master Gap Register and Systematic Implementation Roadmap
 
-**Reviewed:** 2026-10-21  
+**Reviewed:** 2026-10-23
 **Canonical repository:** `Ankitgrahatha/bigagri` (`main`)  
 **Production URL:** https://bigagri.vercel.app/  
 **Status:** Planning baseline; not a production-readiness certification.
@@ -77,7 +77,7 @@ No payment callback, points entry, cache value or admin UI state can be treated 
 - **Acceptance:** duplicate requests do not double-debit; failure/cancellation restores eligible balances and stock exactly once; fulfilment and partner settlement reconcile.
 
 ### I. SaaS plans, subscriptions, payment and monetization
-- **Current:** billing implementation is not verified.
+- **Current:** a substantial billing foundation is implemented and CI-tested in source (versioned plans, subscriptions, idempotent checkout, provider-verified recovery, signed/deduplicated webhook inbox, bounded processor, fail-closed entitlements and billing portal). It is not production-deployed or provider-test-mode verified; production still reports only 13 historical migrations and has no billing Edge Functions.
 - **Gaps:** plan catalogue/versioning; monthly/yearly price and currency; trial, coupon and add-on rules; subscriptions; checkout; payment attempts; webhook inbox; invoice/credit note; refunds; renewals; proration policy; failed-payment dunning; grace periods; cancellations; entitlements; usage metering; overages; billing portal; tax/accounting exports; payment reconciliation.
 - **Plan:** first settle policies and domain model; implement immutable plan versions and server-side entitlements; build provider adapter in test mode; verify webhook signature against raw body; persist and deduplicate events; process events idempotently and tolerate out-of-order delivery; reconcile provider state; then build tenant billing and platform billing console.
 - **Acceptance:** test-mode checkout, duplicate/out-of-order webhook, wrong amount/currency, failed payment, refund, renewal, cancellation, upgrade/downgrade and recovery tests pass. Client redirect alone never activates entitlement. No live money until finance/tax review and release approval.

@@ -17,6 +17,36 @@ function constantTimeEqual(left: string, right: string): boolean {
   return mismatch === 0;
 }
 
+async function readLimitedBody(req: Request, maxBytes: number): Promise<Uint8Array | null> {
+  const reader = req.body?.getReader();
+  if (!reader) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return respond(405, { ok: false, error: "method_not_allowed" });
 
@@ -37,17 +67,25 @@ Deno.serve(async (req: Request) => {
   if (Number.isFinite(contentLength) && contentLength > 4096) {
     return respond(413, { ok: false, error: "payload_too_large" });
   }
-  if (contentLength > 0) {
+  // Enforce the cap while reading too: Content-Length can be absent for streamed
+  // requests, so the header alone is not a reliable request-size boundary.
+  const bodyBytes = await readLimitedBody(req, 4096);
+  if (!bodyBytes) return respond(413, { ok: false, error: "payload_too_large_or_unreadable" });
+  if (bodyBytes.byteLength > 0) {
     let body: unknown;
     try {
-      body = await req.json();
+      body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bodyBytes));
     } catch {
       return respond(400, { ok: false, error: "invalid_request" });
     }
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return respond(400, { ok: false, error: "invalid_request" });
     }
-    const requestedLimit = (body as Record<string, unknown>).limit;
+    const input = body as Record<string, unknown>;
+    if (Object.keys(input).some((key) => key !== "limit")) {
+      return respond(400, { ok: false, error: "invalid_request" });
+    }
+    const requestedLimit = input.limit;
     if (requestedLimit !== undefined) {
       if (!Number.isInteger(requestedLimit) || Number(requestedLimit) < 1 || Number(requestedLimit) > 100) {
         return respond(400, { ok: false, error: "invalid_batch_size" });

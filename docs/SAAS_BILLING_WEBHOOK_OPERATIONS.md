@@ -23,7 +23,7 @@ Never commit secret values, put them in the PWA, or log webhook bodies/signature
 - The authenticated `create-razorpay-subscription` endpoint requires a valid Supabase user session, active tenant membership, a published plan version, a billing interval, and a caller-supplied idempotency key.
 - PostgreSQL reserves the local subscription and payment attempt before the provider API call. Only one incomplete checkout is allowed per tenant.
 - A repeated key reuses the stored checkout URL after finalization. A different key cannot create another pending subscription.
-- If the provider request times out or returns an ambiguous server failure, the reservation remains blocked and requires manual reconciliation against Razorpay using the local subscription ID in provider notes. Do not retry with a new key until the provider subscription state is checked.
+- If the provider request times out or returns an ambiguous server failure, the reservation remains blocked and requires manual reconciliation against Razorpay using the local subscription ID in provider notes. Active tenant super-admins can view aged incomplete reservations through the read-only `saas-checkout-reconciliation` endpoint. Do not retry with a new key until the provider subscription state is checked; the queue does not mutate billing state.
 - A definitive provider 4xx rejection marks the local reservation expired/failed so a fresh attempt can be made.
 - Monthly/yearly cycle counts are mandatory configuration and must be chosen deliberately: the provider subscription ends after the configured number of billing cycles.
 - The first successful charge webhook updates the reserved payment attempt rather than leaving a duplicate initiated record.
@@ -33,7 +33,7 @@ Never commit secret values, put them in the PWA, or log webhook bodies/signature
 1. Review and reconcile migration history in the target environment. Do not apply the clean-schema baseline to an existing production database.
 2. Apply the additive billing migrations through the approved migration process.
 3. Set the secrets above in the target Supabase project.
-4. Deploy `razorpay-webhook`, `create-razorpay-subscription`, and `process-razorpay-webhooks` only after the migration is confirmed present.
+4. Deploy `razorpay-webhook`, `create-razorpay-subscription`, `saas-checkout-reconciliation`, and `process-razorpay-webhooks` only after the migration is confirmed present.
 5. Configure the Razorpay test-mode webhook URL:
    `https://<project-ref>.supabase.co/functions/v1/razorpay-webhook`
 6. Subscribe to the required subscription lifecycle events: `subscription.charged`, `subscription.cancelled`, `subscription.completed`, `subscription.halted`, `subscription.paused`, and `payment.failed`.

@@ -6,7 +6,7 @@ Last reviewed: 2026-10-23
 
 The workflow `.github/workflows/rewardloop-production-release.yml` is manual only. It does not run on push.
 
-1. Requires the operator to select `YES` for production release, confirm Supabase Auth leaked-password protection is enabled, and separately attest that a fresh production schema comparison matches the checked-in baseline if history repair is needed.
+1. Requires the operator to select `YES` for production release and separately attest that a fresh production schema comparison matches the checked-in baseline if history repair is needed. Before linking or mutating production, the workflow reads the live Supabase Auth config through the Management API and fails closed unless `password_hibp_enabled` is exactly `true`.
 2. Requires the four RewardLoop CI workflows to have passed on the exact `main` commit being released.
 3. Links to the fixed production Supabase project reference `guhhuqxrobhuumwrypnc`.
 4. Checks the local migration set against a hardcoded allowlist.
@@ -22,10 +22,10 @@ The Vercel Git integration is expected to deploy the frontend from `main`, but d
 Before dispatching:
 
 - Add repository Actions secrets:
-  - `SUPABASE_ACCESS_TOKEN`: a scoped Supabase personal access token with the minimum permissions needed to link the project, repair migration history, push migrations, and deploy Edge Functions.
+  - `SUPABASE_ACCESS_TOKEN`: a scoped Supabase personal access token with the minimum permissions needed to read Auth config (`auth_config_read`), query the database for the baseline fingerprint, link the project, repair migration history, push migrations, and deploy Edge Functions.
   - `SUPABASE_DB_PASSWORD`: the production database password.
 - Configure the GitHub Actions environment named `production` with required reviewers and a deployment branch restriction to `main`.
-- In Supabase Auth security settings, enable leaked-password protection. The workflow requires an explicit confirmation; that confirmation is an operator attestation, not an API-level verification.
+- In Supabase Auth security settings, enable leaked-password protection before dispatching. The workflow independently verifies `password_hibp_enabled=true` through `GET /v1/projects/{ref}/config/auth`; it fails closed if the API call is unauthorized, malformed, or reports the setting disabled.
 - Before selecting `confirm_live_schema_matches_baseline=YES`, perform and review a fresh live schema comparison using the authenticated Supabase CLI/SQL connection. The isolated CI baseline-parity test compares against the checked-in captured snapshot; it does not by itself query production during the release run.
 - Confirm the production Vercel alias `https://bigagri.vercel.app` is assigned to the current reviewed main deployment.
 - Confirm a current production backup or approved recovery point exists and the restore path has been reviewed.
@@ -38,13 +38,12 @@ Do not put secrets in repository files, workflow inputs, logs, PR comments, or c
 1. Open **GitHub → Actions → RewardLoop controlled production release**.
 2. Select branch `main`.
 3. Set `confirm_production_release` to `YES` only after reviewing the PRs, migration list, and current release status.
-4. Set `auth_leaked_password_protection_enabled` to `YES` only after enabling the setting in Supabase Auth.
-5. If the workflow needs to repair baseline history, set `confirm_live_schema_matches_baseline` to `YES` only after a fresh production schema comparison is reviewed. If you cannot prove parity, leave it `NO` and stop.
-6. Run the workflow and approve the `production` environment deployment when the reviewer gate appears.
-7. If any preflight, dry-run, migration, deploy, or smoke step fails, stop and inspect logs. Do not manually insert/delete rows in `supabase_migrations.schema_migrations`, and never use `supabase db reset --linked` against production.
-8. After success, inspect Supabase function/database logs for errors and confirm all eight deployed function versions.
-9. Keep `REWARDLOOP_BILLING_MONITOR_ENABLED` unset/false until the test-mode billing lifecycle is proven. Only then configure the GitHub Actions secret `RAZORPAY_PROCESSOR_SECRET` to exactly match the Supabase Edge Function secret and enable the scheduler variable.
-10. Run the billing test-mode evidence checklist in `docs/SAAS_BILLING_WEBHOOK_OPERATIONS.md` before approving any real payment flow. Do not treat successful deployment or read-only smoke tests as evidence of a successful subscription lifecycle.
+4. If the workflow needs to repair baseline history, set `confirm_live_schema_matches_baseline` to `YES` only after a fresh production schema comparison is reviewed. If you cannot prove parity, leave it `NO` and stop.
+5. Run the workflow and approve the `production` environment deployment when the reviewer gate appears. The workflow independently checks leaked-password protection through the Management API before any production mutation.
+6. If any preflight, dry-run, migration, deploy, or smoke step fails, stop and inspect logs. Do not manually insert/delete rows in `supabase_migrations.schema_migrations`, and never use `supabase db reset --linked` against production.
+7. After success, inspect Supabase function/database logs for errors and confirm all eight deployed function versions.
+8. Keep `REWARDLOOP_BILLING_MONITOR_ENABLED` unset/false until the test-mode billing lifecycle is proven. Only then configure the GitHub Actions secret `RAZORPAY_PROCESSOR_SECRET` to exactly match the Supabase Edge Function secret and enable the scheduler variable.
+9. Run the billing test-mode evidence checklist in `docs/SAAS_BILLING_WEBHOOK_OPERATIONS.md` before approving any real payment flow. Do not treat successful deployment or read-only smoke tests as evidence of a successful subscription lifecycle.
 
 ## Failure and retry behavior
 

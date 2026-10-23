@@ -219,20 +219,57 @@ BEGIN
       RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
     END IF;
 
-    INSERT INTO private.saas_payment_attempts (
-      tenant_id, subscription_id, provider, idempotency_key, amount_minor, currency,
-      provider_payment_id, status, captured_at
-    )
-    VALUES (
-      v_subscription.tenant_id, v_subscription.id, 'razorpay',
-      'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'), v_payment_amount, v_payment_currency,
-      v_provider_payment_id, 'captured', v_event_time
-    )
-    ON CONFLICT DO NOTHING;
-
     SELECT * INTO v_payment_attempt
     FROM private.saas_payment_attempts
-    WHERE provider = 'razorpay' AND provider_payment_id = v_provider_payment_id;
+    WHERE provider = 'razorpay' AND provider_payment_id = v_provider_payment_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      SELECT * INTO v_payment_attempt
+      FROM private.saas_payment_attempts
+      WHERE tenant_id = v_subscription.tenant_id
+        AND subscription_id = v_subscription.id
+        AND provider = 'razorpay'
+        AND provider_payment_id IS NULL
+        AND status = 'initiated'
+      ORDER BY created_at DESC
+      LIMIT 1
+      FOR UPDATE;
+
+      IF FOUND THEN
+        IF v_payment_attempt.amount_minor <> v_payment_amount
+           OR v_payment_attempt.currency <> v_payment_currency THEN
+          v_failure_code := 'payment_id_conflict';
+          UPDATE private.saas_payment_webhook_events
+          SET status = 'failed', processing_started_at = NULL, last_error_code = v_failure_code,
+              processing_result = NULL, processed_at = NULL
+          WHERE id = p_event_id;
+          RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
+        END IF;
+        UPDATE private.saas_payment_attempts
+        SET provider_payment_id = v_provider_payment_id,
+            status = 'captured', captured_at = v_event_time,
+            failure_code = NULL, updated_at = now()
+        WHERE id = v_payment_attempt.id
+        RETURNING * INTO v_payment_attempt;
+      ELSE
+        INSERT INTO private.saas_payment_attempts (
+          tenant_id, subscription_id, provider, idempotency_key, amount_minor, currency,
+          provider_payment_id, status, captured_at
+        )
+        VALUES (
+          v_subscription.tenant_id, v_subscription.id, 'razorpay',
+          'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'),
+          v_payment_amount, v_payment_currency, v_provider_payment_id, 'captured', v_event_time
+        )
+        ON CONFLICT DO NOTHING;
+
+        SELECT * INTO v_payment_attempt
+        FROM private.saas_payment_attempts
+        WHERE provider = 'razorpay' AND provider_payment_id = v_provider_payment_id
+        FOR UPDATE;
+      END IF;
+    END IF;
 
     IF NOT FOUND THEN
       v_failure_code := 'payment_id_conflict';
@@ -322,20 +359,57 @@ BEGIN
       RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
     END IF;
 
-    INSERT INTO private.saas_payment_attempts (
-      tenant_id, subscription_id, provider, idempotency_key, amount_minor, currency,
-      provider_payment_id, status, failure_code
-    )
-    VALUES (
-      v_subscription.tenant_id, v_subscription.id, 'razorpay',
-      'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'), v_payment_amount, v_payment_currency,
-      v_provider_payment_id, 'failed', 'provider_payment_failed'
-    )
-    ON CONFLICT DO NOTHING;
-
     SELECT * INTO v_payment_attempt
     FROM private.saas_payment_attempts
-    WHERE provider = 'razorpay' AND provider_payment_id = v_provider_payment_id;
+    WHERE provider = 'razorpay' AND provider_payment_id = v_provider_payment_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      SELECT * INTO v_payment_attempt
+      FROM private.saas_payment_attempts
+      WHERE tenant_id = v_subscription.tenant_id
+        AND subscription_id = v_subscription.id
+        AND provider = 'razorpay'
+        AND provider_payment_id IS NULL
+        AND status = 'initiated'
+      ORDER BY created_at DESC
+      LIMIT 1
+      FOR UPDATE;
+
+      IF FOUND THEN
+        IF v_payment_attempt.amount_minor <> v_payment_amount
+           OR v_payment_attempt.currency <> v_payment_currency THEN
+          v_failure_code := 'payment_id_conflict';
+          UPDATE private.saas_payment_webhook_events
+          SET status = 'failed', processing_started_at = NULL, last_error_code = v_failure_code,
+              processing_result = NULL, processed_at = NULL
+          WHERE id = p_event_id;
+          RETURN jsonb_build_object('ok', false, 'error', v_failure_code);
+        END IF;
+        UPDATE private.saas_payment_attempts
+        SET provider_payment_id = v_provider_payment_id,
+            status = 'failed', failure_code = 'provider_payment_failed',
+            updated_at = now()
+        WHERE id = v_payment_attempt.id
+        RETURNING * INTO v_payment_attempt;
+      ELSE
+        INSERT INTO private.saas_payment_attempts (
+          tenant_id, subscription_id, provider, idempotency_key, amount_minor, currency,
+          provider_payment_id, status, failure_code
+        )
+        VALUES (
+          v_subscription.tenant_id, v_subscription.id, 'razorpay',
+          'razorpay-payment:' || encode(extensions.digest(convert_to(v_provider_payment_id, 'UTF8'), 'sha256'), 'hex'),
+          v_payment_amount, v_payment_currency, v_provider_payment_id, 'failed', 'provider_payment_failed'
+        )
+        ON CONFLICT DO NOTHING;
+
+        SELECT * INTO v_payment_attempt
+        FROM private.saas_payment_attempts
+        WHERE provider = 'razorpay' AND provider_payment_id = v_provider_payment_id
+        FOR UPDATE;
+      END IF;
+    END IF;
 
     IF NOT FOUND THEN
       v_failure_code := 'payment_id_conflict';

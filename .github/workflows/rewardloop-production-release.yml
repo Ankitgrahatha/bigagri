@@ -21,6 +21,12 @@ on:
         options: ["NO", "YES"]
         default: "NO"
         required: true
+      confirm_billing_test_secrets_configured:
+        description: "Confirm the required Razorpay Edge Function secrets are configured with test-mode credentials only."
+        type: choice
+        options: ["NO", "YES"]
+        default: "NO"
+        required: true
 
 permissions:
   contents: read
@@ -32,7 +38,7 @@ concurrency:
 
 jobs:
   release:
-    if: inputs.confirm_production_release == 'YES' && inputs.auth_leaked_password_protection_enabled == 'YES' && github.ref == 'refs/heads/main'
+    if: inputs.confirm_production_release == 'YES' && inputs.auth_leaked_password_protection_enabled == 'YES' && inputs.confirm_billing_test_secrets_configured == 'YES' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 30
@@ -101,6 +107,32 @@ jobs:
       - name: Link the exact production Supabase project
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
+      - name: Verify required billing secrets exist before any production mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          secrets_output="$(supabase secrets list --project-ref "$SUPABASE_PROJECT_REF")"
+          required=(
+            RAZORPAY_WEBHOOK_SECRET
+            RAZORPAY_PROCESSOR_SECRET
+            RAZORPAY_KEY_ID
+            RAZORPAY_KEY_SECRET
+            RAZORPAY_MONTHLY_TOTAL_COUNT
+            RAZORPAY_YEARLY_TOTAL_COUNT
+          )
+          missing=()
+          for name in "${required[@]}"; do
+            if ! grep -Eq "(^|[|[:space:]])${name}([|[:space:]]|$)" <<< "$secrets_output"; then
+              missing+=("$name")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf '::error::Required billing secrets are missing: %s\\n' "${missing[*]}"
+            echo "Refusing release before migration or deployment. Configure test-mode credentials only, then retry."
+            exit 1
+          fi
+          echo "PASS: required billing secret names are configured (values were not printed)."
+
       - name: Reconcile only the verified baseline and validate migration allowlist
         shell: bash
         run: |
@@ -122,6 +154,10 @@ jobs:
             "20261021201000","20261021202000","20261021203000","20261021203100",
             "20261022100000","20261022110000","20261022200000","20261022203000",
             "20261022210000",
+            # SaaS billing migrations already present in this repository.
+            "20261023100000","20261023110000","20261023120000","20261023130000",
+            "20261023140000","20261023150000","20261023160000","20261023170000",
+            "20261023180000","20261023190000",
           }
           expected_local = historical | {baseline} | post
           actual_local = {p.name[:14] for p in Path("supabase/migrations").glob("*.sql")}
@@ -195,8 +231,22 @@ jobs:
           print(f"PASS: all {len(local)} local migrations are recorded remotely")
           PY
 
-      - name: Deploy the matching RewardLoop API
-        run: supabase functions deploy rewardloop-api --project-ref "$SUPABASE_PROJECT_REF"
+      - name: Deploy the reviewed RewardLoop and SaaS billing Edge Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for function in \
+            rewardloop-api \
+            rewardloop-admin-settings \
+            razorpay-webhook \
+            create-razorpay-subscription \
+            reconcile-razorpay-subscription \
+            saas-checkout-reconciliation \
+            saas-billing-portal \
+            process-razorpay-webhooks; do
+            echo "Deploying reviewed Edge Function: $function"
+            supabase functions deploy "$function" --project-ref "$SUPABASE_PROJECT_REF"
+          done
 
       - name: Read-only production smoke
         shell: bash

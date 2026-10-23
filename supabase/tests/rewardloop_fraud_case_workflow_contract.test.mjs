@@ -26,6 +26,7 @@ test("database RPCs enforce active tenant-admin membership and tenant-bound link
   assert.match(migration, /assignee_not_authorized/);
   assert.match(migration, /fraud_case_terminal/);
   assert.match(migration, /resolution_details_required/);
+  assert.match(migration, /tenant_inactive/);
   assert.match(migration, /fraud_case_opened/);
   assert.match(migration, /fraud_case_updated/);
 });

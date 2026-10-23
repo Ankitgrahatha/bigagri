@@ -35,6 +35,15 @@ BEGIN
   END IF;
   v_case_id := (v_result->'case'->>'id')::uuid;
 
+  UPDATE public.tenants SET status='suspended' WHERE id=v_tenant_a;
+  v_result := public.rewardloop_update_fraud_case_internal(
+    v_admin_a,v_tenant_a,v_case_id,'investigating',NULL,NULL,NULL
+  );
+  IF v_result->>'ok' <> 'false' OR v_result->>'error' <> 'tenant_inactive' THEN
+    RAISE EXCEPTION 'suspended tenant case update was not rejected: %',v_result;
+  END IF;
+  UPDATE public.tenants SET status='active' WHERE id=v_tenant_a;
+
   v_result := public.rewardloop_create_fraud_case_internal(
     v_admin_a,v_tenant_a,'Cross-tenant partner reference','partner_mismatch','medium',
     'Must not link tenant B partner',v_partner_b,NULL,NULL
@@ -60,7 +69,7 @@ BEGIN
   v_result := public.rewardloop_update_fraud_case_internal(
     v_admin_a,v_tenant_b,v_case_id,'investigating',NULL,NULL,NULL
   );
-  IF v_result->>'ok' <> 'false' OR v_result->>'error' <> 'fraud_case_not_found' THEN
+  IF v_result->>'ok' <> 'false' OR v_result->>'error' <> 'forbidden' THEN
     RAISE EXCEPTION 'cross-tenant case update was not rejected: %',v_result;
   END IF;
 

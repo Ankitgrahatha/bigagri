@@ -185,6 +185,9 @@ BEGIN
   ) THEN
     RETURN jsonb_build_object('ok',false,'error','forbidden');
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.tenants t WHERE t.id=p_tenant_id AND t.status='active') THEN
+    RETURN jsonb_build_object('ok',false,'error','tenant_inactive');
+  END IF;
   IF p_assigned_to IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM public.tenant_memberships m
     WHERE m.tenant_id=p_tenant_id AND m.user_id=p_assigned_to

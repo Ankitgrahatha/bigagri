@@ -5,6 +5,8 @@ import test from "node:test";
 const workflow=readFileSync(new URL("../../.github/workflows/rewardloop-production-release.yml",import.meta.url),"utf8");
 const runbook=readFileSync(new URL("../../docs/PRODUCTION_RELEASE_RUNBOOK.md",import.meta.url),"utf8");
 const liveParitySql=readFileSync(new URL("../ops/verify_live_schema_baseline.sql",import.meta.url),"utf8");
+const scheduler=readFileSync(new URL("../../.github/workflows/rewardloop-billing-webhook-scheduler.yml",import.meta.url),"utf8");
+const billingRunbook=readFileSync(new URL("../../docs/SAAS_BILLING_WEBHOOK_OPERATIONS.md",import.meta.url),"utf8");
 
 test("production release is manual and requires explicit confirmations",()=>{
  assert.match(workflow,/workflow_dispatch:/);
@@ -90,4 +92,21 @@ test("release runbook distinguishes deployment smoke checks from billing lifecyc
  for (const fn of ["rewardloop-api", "rewardloop-admin-settings", "razorpay-webhook", "create-razorpay-subscription", "reconcile-razorpay-subscription", "saas-checkout-reconciliation", "saas-billing-portal", "process-razorpay-webhooks"]) {
   assert.ok(runbook.includes("`"+fn+"`"), `runbook should list ${fn}`);
  }
+});
+
+test("billing scheduler is opt-in, bounded, and does not leak secrets or payloads",()=>{
+ assert.match(scheduler,/vars\.REWARDLOOP_BILLING_MONITOR_ENABLED == 'true'/);
+ assert.match(scheduler,/cron: "\*\/5 \* \* \* \*"/);
+ assert.match(scheduler,/timeout-minutes: 3/);
+ assert.match(scheduler,/--data '\{"limit":25\}'/);
+ assert.match(scheduler,/secrets\.RAZORPAY_PROCESSOR_SECRET/);
+ assert.match(scheduler,/health_metrics_available/);
+ assert.match(scheduler,/exhausted_total/);
+ assert.match(scheduler,/oldest_unprocessed_age_seconds/);
+ assert.match(scheduler,/failed > 0 or exhausted > 0 or oldest_age > 300/);
+ assert.match(scheduler,/No request secret or response body was copied into this issue/);
+ assert.doesNotMatch(scheduler,/echo\s+.*PROCESSOR_SECRET/);
+ assert.match(billingRunbook,/scheduler configuration/);
+ assert.match(billingRunbook,/test-mode evidence/);
+ assert.match(billingRunbook,/Restore\/reconciliation drill|Restore\/reconciliation/);
 });

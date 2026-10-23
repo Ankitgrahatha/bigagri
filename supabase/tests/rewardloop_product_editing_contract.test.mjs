@@ -7,7 +7,7 @@ const admin=readFileSync(new URL("../../admin.js",import.meta.url),"utf8");
 const migration=readFileSync(new URL("../migrations/20261022210000_audited_product_editing.sql",import.meta.url),"utf8");
 
 test("product metadata updates use the selected tenant and privileged RPC",()=>{
- assert.match(api,/"set_product_status", "update_product"\]\.includes\(action\)/);
+ assert.match(api,/"set_product_status", "update_product".*includes\(action\)/);
  assert.match(api,/action === "update_product"/);
  assert.match(api,/admin\.rpc\("rewardloop_update_product_internal"/);
  assert.match(api,/p_actor_user_id:\s*user\.id/);

@@ -9,7 +9,7 @@
 
 ## Executive summary
 
-The project has a meaningful MVP foundation and substantial database/security test coverage. It is **not complete and not approved for a production launch**. The largest risk is not simply missing screens: source, deployed frontend, deployed Edge Functions, database migration history, and documented product scope are not yet aligned.
+The project has a meaningful MVP foundation and substantial database/security test coverage. Billing source, webhook processing, checkout recovery, health monitoring and controlled release workflow are now present in the canonical repository, but the product is **not complete and not approved for a production launch**. The largest risk remains release drift: source, deployed frontend, deployed Edge Functions, database migration history, and product scope are not yet aligned.
 
 The current evidence shows:
 - The `bigagri` repository has the main admin console, admin settings, the broader SQL migration chain, multiple CI/security workflows and the master gap/traceability docs.
@@ -21,7 +21,7 @@ The current evidence shows:
 - The production deployment is behind Git `main`; the recorded deployment limit was HTTP 402 for Vercel build quota. Do not repeatedly trigger builds or treat a READY deployment as proof it runs current code.
 - Six legacy Edge Function routes remain deployed with manual JWT checks and wildcard CORS; `onboard-farmer` also has a divergent profile status/write path. Do not retire these until traffic and callers are reviewed.
 - Supabase Auth leaked-password protection was recorded as disabled. Enable and verify before launch.
-- No verified subscription billing, SaaS entitlements, external reward fulfilment provider, settlement, or complete fraud-case workflow was found in the reviewed repository evidence.
+- A substantial SaaS billing foundation now exists in source and passes CI contract/database tests, but production has not received its billing migrations or Edge Functions and test-mode provider lifecycle evidence is missing. External reward fulfilment, partner settlement and complete fraud-case workflow also remain unverified.
 
 ## Confidence and evidence rules
 
@@ -118,7 +118,7 @@ A UI component, API action, migration file, successful CI run, or Vercel deploym
 | Integrations & system health | Limited configuration status | Auth/SMTP/API/queue/provider health, version compatibility, failed-job queue, redacted diagnostics and alert routing |
 | Email/Auth settings | Preference form exists; live integration is blocked | Implement privileged server-only Auth management, secret handling, test email and publish/rollback; otherwise remove misleading controls |
 | Content/branding | Not verified as a full CMS | Tenant logo/theme/language, public storefront content, announcement/draft/preview/publish/version/rollback and cache invalidation |
-| Plans/billing/entitlements | No verified implementation | Separate SaaS billing from loyalty points/campaign finance; plan versions, entitlements, checkout, webhook inbox, invoices, refunds, dunning and usage metering |
+| Plans/billing/entitlements | Versioned plans, tenant subscriptions, checkout, webhook inbox/worker, reconciliation and fail-closed entitlements implemented in source; not production-deployed/verified | Deploy only after migration reconciliation; run provider test-mode lifecycle; invoices/tax, refunds, dunning/grace, plan changes and usage metering remain separate work |
 | Support/operations | Not verified as a complete workflow | Support tickets, safe impersonation policy (prefer no impersonation), dispute handling, incident notes, data export/deletion and account recovery audit |
 
 **Acceptance for every admin module:** capability visible only to allowed roles; backend enforces tenant and role; full CRUD/read scope has validation and audit where relevant; automated allow/deny tests pass; loading/empty/error/success states exist; production behavior is tested before marking complete.

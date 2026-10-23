@@ -12,7 +12,7 @@ test("production release is manual and requires explicit confirmations",()=>{
  assert.match(workflow,/workflow_dispatch:/);
  assert.doesNotMatch(workflow,/^\s*push:/m);
  assert.match(workflow,/confirm_production_release == 'YES'/);
- assert.match(workflow,/auth_leaked_password_protection_enabled == 'YES'/);
+ assert.match(workflow,/Verify live leaked-password protection via Supabase Management API/);
  assert.match(workflow,/confirm_live_schema_matches_baseline:/);
  assert.match(workflow,/confirm_billing_test_secrets_configured == 'YES'/);
  assert.match(workflow,/confirm_billing_test_secrets_configured:/);
@@ -109,4 +109,19 @@ test("billing scheduler is opt-in, bounded, and does not leak secrets or payload
  assert.match(billingRunbook,/scheduler configuration/);
  assert.match(billingRunbook,/test-mode evidence/);
  assert.match(billingRunbook,/Restore\/reconciliation drill|Restore\/reconciliation/);
+});
+
+test("release verifies leaked-password protection from live Auth config without printing the config",()=>{
+ const verify=workflow.indexOf("Verify live leaked-password protection via Supabase Management API");
+ const link=workflow.indexOf("Link the exact production Supabase project");
+ assert.ok(verify>=0&&link>verify,"Auth security check must precede project linking and all mutations");
+ const gate=workflow.slice(verify,link);
+ assert.match(gate,/api\.supabase\.com\/v1\/projects\/\$SUPABASE_PROJECT_REF\/config\/auth/);
+ assert.match(gate,/password_hibp_enabled/);
+ assert.match(gate,/auth_config_read permission/);
+ assert.match(gate,/Could not read Supabase Auth configuration/);
+ assert.match(gate,/config\.get\("password_hibp_enabled"\) is not True/);
+ assert.match(gate,/unset auth_config/);
+ assert.doesNotMatch(gate,/echo\s+.*\$auth_config/);
+ assert.doesNotMatch(workflow,/auth_leaked_password_protection_enabled/);
 });

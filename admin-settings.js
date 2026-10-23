@@ -34,7 +34,6 @@ async function save(action,payload){
 $("saveEmail").addEventListener("click",()=>save("admin_settings_save",{settings:{email_provider:$("provider").value,sender_email:$("sender").value.trim(),sender_name:$("senderName").value.trim(),smtp_host:$("host").value.trim(),smtp_port:Number($("port").value),smtp_username:$("username").value.trim(),smtp_password:$("password").value}}));
 $("saveAuth").addEventListener("click",()=>save("admin_settings_save",{settings:{site_url:$("siteUrl").value.trim(),redirect_urls:$("redirects").value.split("\n").map(x=>x.trim()).filter(Boolean),signup_enabled:$("signupEnabled").checked,email_confirmation_required:$("emailConfirm").checked}}));
 $("saveTemplates").addEventListener("click",()=>save("admin_settings_save",{settings:{confirmation_subject:$("confirmSubject").value.trim(),confirmation_body:$("confirmBody").value,recovery_subject:$("recoverySubject").value.trim(),recovery_body:$("recoveryBody").value}}));
-$("testEmail").addEventListener("click",()=>status("Test email is not enabled until the privileged Supabase Auth configuration integration is installed.",true));
 $("refresh").addEventListener("click",boot);
 $("signout").addEventListener("click",async()=>{await supabase.auth.signOut();location.href="/";});
 supabase.auth.onAuthStateChange((_event,s)=>{session=s;if(!s)status("Session ended. Sign in again.",true);});

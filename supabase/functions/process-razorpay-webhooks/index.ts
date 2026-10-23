@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
+import { readLimitedBody } from "../_shared/read_limited_body.mjs";
 
 const respond = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), {
@@ -15,36 +16,6 @@ function constantTimeEqual(left: string, right: string): boolean {
     mismatch |= (leftBytes[i] ?? 0) ^ (rightBytes[i] ?? 0);
   }
   return mismatch === 0;
-}
-
-async function readLimitedBody(req: Request, maxBytes: number): Promise<Uint8Array | null> {
-  const reader = req.body?.getReader();
-  if (!reader) return new Uint8Array();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        await reader.cancel().catch(() => {});
-        return null;
-      }
-      chunks.push(value);
-    }
-  } catch {
-    return null;
-  } finally {
-    reader.releaseLock();
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
 }
 
 Deno.serve(async (req: Request) => {

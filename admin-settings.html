@@ -26,7 +26,7 @@
           <label for="username">SMTP username</label><input id="username" autocomplete="off">
           <label for="password">SMTP password / app password</label><input id="password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current credential">
           <p class="admin-note danger-note">Live Supabase Auth SMTP is not configured by this form yet. Saving preferences does not change email delivery. If you enter an SMTP password before integration is installed, it will be rejected and the field cleared.</p>
-          <div class="admin-actions"><button id="saveEmail" class="primary-button" type="button">Save email settings</button><button id="testEmail" class="secondary-button" type="button">Send test email</button></div>
+          <div class="admin-actions"><button id="saveEmail" class="primary-button" type="button">Save email preferences</button><button id="testEmail" class="secondary-button" type="button" disabled aria-disabled="true" title="Unavailable until the privileged email integration is installed">Test email unavailable</button></div><p class="admin-note" id="testEmailUnavailable">Test delivery is disabled: no email provider is connected to Supabase Auth yet. This page cannot send a test message.</p>
         </section>
         <section class="admin-card"><h2>Authentication</h2><p class="admin-note">Security-first controls for account creation and confirmation.</p>
           <label for="siteUrl">Application site URL</label><input id="siteUrl" type="url" placeholder="https://bigagri.vercel.app">

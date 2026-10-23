@@ -1,6 +1,6 @@
 # RewardLoop PRD Traceability and Build Status
 
-Last reviewed: 2026-10-22
+Last reviewed: 2026-10-23
 Repository: `Ankitgrahatha/bigagri` (branch `main`)
 Production app: `https://bigagri.vercel.app/`
 Supabase project: `guhhuqxrobhuumwrypnc`
@@ -24,14 +24,14 @@ This repository implements **Growta RewardLoop**, a multi-tenant agricultural lo
 | Campaigns | Draft creation, date validation, explicit activation/pause/archive and demo campaign activation guard exist in code/migrations | Implemented in code; boundary tests and campaign budget enforcement still required |
 | Rewards/redemptions | Atomic reservation/replay tests; parallel redemption tests; cancellation refund uses valid redeem_release enum; cancellation/fulfillment accounting tested | Isolated tests pass for one-time refund/stock restoration and fulfilled redemption finality; production deployment and real provider reconciliation remain open |
 | Brand multi-tenancy | Tenant ID is present on core tables and server-side tenant selection is used | Partial; current app has a single configured tenant slug, so configurable tenant onboarding and cross-tenant tests are not complete |
-| Admin settings | `admin-settings.html/js` and `rewardloop-admin-settings` function exist | Partial/blocked: preferences can be stored, but SMTP/Auth settings are not applied to Supabase Auth; test-email action is a placeholder |
+| Admin settings | `admin-settings.html/js` and `rewardloop-admin-settings` function exist | Partial/blocked: preferences only; SMTP/Auth settings are not applied to Supabase Auth. Test-email control is visibly disabled until the privileged integration exists |
 | Analytics/fraud | Basic admin counters and CSV exports exist | Partial; risk case workflow, budget/liability analytics, campaign profitability and advanced fraud review not implemented/verified |
 | Reward fulfilment integrations | No verified provider integration in the inspected repository | Not started / open dependency |
-| Billing and SaaS plans | No verified subscription billing implementation in inspected repository | Not started |
-| Monitoring/operations | Production notes exist; full alerting, backup/restore drill and incident playbooks not verified | Partial |
+| Billing and SaaS plans | Versioned plans, tenant subscriptions, idempotent Razorpay checkout, signed webhook inbox/worker, reconciliation queue and billing portal exist in source with contract/SQL tests | Source implemented; production blocked: live project has only 13 historical migrations and does not list billing Edge Functions; test-mode lifecycle not verified |
+| Monitoring/operations | Controlled release workflow, webhook health metrics, opt-in five-minute scheduler, aggregate alerts and incident runbook exist | Partial; scheduler remains disabled, production backup/restore drill and billing test-mode evidence remain open |
 | Automated test suite / CI gates | GitHub Actions quality gate, smoke tests, legacy-route guard, and disposable PostgreSQL migration/transaction/concurrency suite | Implemented in repository; tests must pass on the final merged commit and do not prove production migrations have been applied |
 
-## 2026-10-22 verified progress
+## 2026-10-23 verified progress
 
 The following items are now present in the repository and have passed isolated GitHub Actions checks; they are not a substitute for production release verification:
 
@@ -45,7 +45,15 @@ The following items are now present in the repository and have passed isolated G
 
 Evidence links: [PR #24 migration rebuild](https://github.com/Ankitgrahatha/bigagri/pull/24), [PR #25 default ACLs](https://github.com/Ankitgrahatha/bigagri/pull/25), [PR #26 refund enum fix](https://github.com/Ankitgrahatha/bigagri/pull/26), [PR #42 null-status guard](https://github.com/Ankitgrahatha/bigagri/pull/42), and [isolated database CI](https://github.com/Ankitgrahatha/bigagri/actions/workflows/rewardloop-claim-replay-db.yml).
 
-**Production boundary:** the remote project still reports the original 13 migration versions. The new baseline and later security migrations have not been pushed to production. Do not run the baseline DDL against the live project; complete the documented schema comparison and history-only repair gate first.
+**Production boundary (read-only recheck on 2026-10-23):** Supabase still reports only the original 13 migration versions out of 41 repository migration files. The live project lists `rewardloop-api` v10 and `rewardloop-admin-settings` v2 plus six legacy functions; the new Razorpay/SaaS billing Edge Functions are absent. The security advisor reports leaked-password protection disabled and an informational RLS-enabled/no-policy finding on `public.rewardloop_admin_settings` (do not add permissive client policies; keep access behind the authenticated, tenant-authorized function). The performance advisor reports 25 unused indexes; do not drop them without representative workload evidence. A fresh read-only catalog fingerprint comparison previously matched the checked-in baseline, but it is not a backup and does not reconcile migration history. Never run baseline DDL against the live project.
+
+### Additional verified work on 2026-10-23
+
+- SaaS billing source includes versioned plan pricing, tenant subscription and payment-attempt tables, fail-closed entitlements, idempotent checkout, provider-verified checkout recovery, signed webhook receipt/deduplication, bounded processing, health metrics, and a read-only reconciliation queue. This is not live billing readiness: the corresponding production migrations and functions remain absent.
+- Production release runbook now distinguishes shallow HTTP smoke tests from test-mode billing lifecycle proof and keeps the scheduler disabled until test-mode evidence exists.
+- The scheduler safety contract now checks the opt-in flag, five-minute cadence, bounded batch size/runtime, health metric validation, alert thresholds, and secret/payload non-disclosure.
+- Latest local main test suite: 154 passed, 0 failed after the scheduler safety regression merge. Browser JavaScript syntax checks and `git diff --check` passed.
+- Vercel deployment is still blocked by the reported daily deployment quota; the latest PR status remains a Vercel quota failure, not a passing deployment.
 
 ## Requirement-to-implementation matrix
 

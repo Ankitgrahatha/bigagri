@@ -53,32 +53,27 @@ Current CI evidence on main:
 
 **Release boundary:** source and isolated CI are substantially more complete, but production is not current and is not approved for live SaaS billing. Do not run baseline DDL or bypass the protected release workflow. The remaining live steps require a schema-parity review, backup/recovery confirmation, Auth security configuration, server-side test credentials, a successful reviewed migration dry-run, and test-mode end-to-end evidence.
 
-## Latest release-gate evidence (2026-10-23)
+## Latest release-gate evidence
 
-- The full baseline-parity gate was added in PR #68 and merged as commit `a3f70d1bbb16685c4828385a5f8b474b1f1cf547`. The isolated PostgreSQL job passed after applying the schema-only baseline and all 13 historical no-op markers, then comparing catalog fingerprints, function body/security hashes, per-table effective grants, and default-ACL behavior before applying newer migrations.
-- The same main commit passed all four CI workflows: isolated PostgreSQL regression, quality gate, safe API smoke tests, and legacy-route guard.
-- A fresh read-only query of the connected Supabase project still shows exactly the original 13 historical migration versions. It also confirms the baseline function hashes for `private.claim_qr`, `private.resolve_redemption`, and the eight original internal wrappers. The live `tenants` table does **not** yet have `public_catalog_enabled`, confirming that post-baseline migrations are still pending in production.
-- Vercel reports the production alias READY at commit `f246e08891e1e13f36f9e9abea2b2803b74dfae9` (deployment `dpl_7pt54LRi6Gn7PWihqa8mT6suALrB`). Git `main` has since advanced to `a3f70d1bbb16685c4828385a5f8b474b1f1cf547`; this is deployment drift. The Vercel deployment API still showed the recent production build-rate limit, so do not repeatedly trigger builds.
-- Vercel's grouped runtime-error query returned no errors in its selected window. This is only a limited observability signal, not proof of end-to-end correctness.
+- The baseline-parity test and isolated PostgreSQL workflow validate the schema-only baseline, the 13 historical no-op markers, catalog fingerprints, function bodies/security configuration, per-table grants, default privileges, transactional behavior, tenant isolation, and concurrency in disposable CI.
+- The live Supabase project still reports exactly those 13 historical migration versions. CI parity is not proof that pending migrations were applied to production.
+- Latest main contract suite: 149 passed, 0 failed; browser JavaScript syntax and diff checks passed. Merged PR CI also passed quality gate, safe smoke, legacy-route guard and isolated PostgreSQL regression.
+- The live Supabase advisor reports leaked-password protection disabled and one informational RLS-without-policy finding for `public.rewardloop_admin_settings`. The latter is safe only while direct client grants remain revoked and access stays behind the authenticated, tenant-authorized Edge Function. It is not a reason to create permissive client policies.
+- The performance advisor reports 25 unused indexes. Do not drop them based solely on this signal; reassess after representative traffic and load testing.
+- The production Vercel alias is not verified against the latest main commit. The latest deployment attempt for current main returned HTTP 402 due the account's 100-deployments-per-24-hours limit. No workaround or plan change was made.
 
-**Release boundary:** the passing parity test proves the checked-in baseline matches the captured schema snapshot in the isolated test environment; it does not apply pending migrations or perform the Supabase CLI history-only repair. Do not change production migration history or push SQL until the authenticated CLI workflow confirms the full linked schema diff, current migration list, backup/restore readiness, and exact pending migration plan.
-
-## Latest live Supabase advisor snapshot (2026-10-22)
-
-- **Warning:** leaked-password protection remains disabled in Supabase Auth. Enable it in Auth security settings and verify it with a controlled signup/password test before production launch.
-- **Informational:** `public.rewardloop_admin_settings` has RLS enabled with no table policies. This is intentional only if direct client access remains revoked and all reads/writes stay behind the authenticated, tenant-authorized `rewardloop-admin-settings` Edge Function. Recheck table grants and the function boundary if this changes.
-- **Performance info:** 25 indexes are currently reported unused. Do not drop them solely on this advisory; traffic is limited and these indexes support expected QR, claim, ledger, redemption and audit queries. Reassess after representative load tests.
-
-These findings were read from the connected project advisor. They are not fixed by CI and are separate from the migrations still pending production deployment.
+**Release boundary:** never run the schema baseline against the live database. History-only repair is allowed only after a fresh, full schema comparison proves equivalence, backup/recovery readiness is recorded, and an approved operator reviews the exact linked dry-run. See [Supabase migration reconciliation](./SUPABASE_MIGRATION_RECONCILIATION.md) and [production release runbook](./PRODUCTION_RELEASE_RUNBOOK.md).
 
 ## Production blockers still open
 
-1. **Production migration history is not yet reconciled.** Do not run the schema baseline against the live database. Compare live schema to the baseline, confirm the remote migration versions, then perform the documented history-only repair and review a linked dry-run before any production push.
-2. **Refund, claim/rate-limit, product creation, product lifecycle, product editing and other subsequent security migrations are pending deployment.** They are in Git and passed isolated tests; the live function/database still needs controlled release verification.
-3. **Auth email delivery and leaked-password protection** remain unverified/disabled as noted below.
-4. **Legacy Edge Functions remain active.** The latest 24-hour function-log query showed traffic to `rewardloop-api` but no logged requests to the six legacy routes. That is only a 24-hour observation window—not sufficient evidence to retire routes. Keep them active until client references and a longer observation window are checked.
-5. **No browser-level end-to-end run** has yet proved signup → confirmation → profile → claim → balance → redemption → cancellation/fulfillment on the deployed production stack.
-6. **Production deployment is behind Git main.** Vercel reports the latest production target at commit `948e6f5bf541e77a70ea92ce5319d14f46055a51`. The latest marker-enhanced smoke check failed because the production alias does not yet serve the newest rate-limit UI and admin email-settings copy. Do not claim current main UI is live; deploy only after the database release gate is resolved.
+1. **Production database migration history is unreconciled.** Live reports 13 historical versions while repository main contains 41 migration files. Do not run baseline DDL or apply pending migrations until a fresh schema-parity comparison, backup/recovery review, migration-list review and exact linked dry-run are approved.
+2. **SaaS billing schema and functions are not deployed.** Billing is implemented and CI-tested in source, but the production project has no billing migrations/functions yet. Required server-side test credentials, provider plan IDs and test-mode checkout/webhook/reconciliation evidence remain outstanding.
+3. **Auth leaked-password protection is disabled.** Enable it in Supabase Auth security settings and verify it with a controlled test before launch. Production email confirmation, SMTP delivery and privileged MFA policy are also not fully verified.
+4. **Six legacy Edge Functions remain active** with `verify_jwt=false` and manual authentication/CORS handling. Do not retire or replace them until source/client references and a longer privacy-safe traffic window have been reviewed and parity/rollback are documented.
+5. **Vercel production is behind current main.** The production deployment API reports the old `263d598` main commit; a new deployment of current main was rejected by the account's daily deployment limit (HTTP 402). Wait for quota reset or resolve the plan limit through the account owner; do not bypass project billing/security controls.
+6. **No production browser-level end-to-end acceptance run** has proved signup → confirmation → profile → claim → balance → redemption → cancellation/fulfillment against the current deployed stack.
+7. **Tenant self-service provisioning and several admin control-plane workflows remain incomplete.** The app still defaults to `growta-rewardloop`; multi-tenant source safeguards do not equal a complete onboarding/invitation/custom-domain/lifecycle product.
+8. **Additional product work remains:** live SMTP/Auth configuration, test-email delivery, full fraud-case workflow, external reward fulfilment and settlement, backup/restore drill, operational alert delivery, usage metering and billing tax/invoice policies.
 
 ## Implemented in repository / database
 
@@ -124,13 +119,12 @@ PRs #91–#93 and #95 have added a meaningful Razorpay SaaS billing foundation i
 
 ## Other blockers and unverified areas
 
-- Production Auth email delivery and account confirmation are not verified; current account's email confirmation was previously observed as pending.
-- The settings console does not yet apply SMTP, Auth URL, signup policy or email templates to live Supabase Auth. Its test-email action is a placeholder.
-- The repository now has isolated PostgreSQL regression coverage for tenant catalog isolation, exact dashboard metrics, claim/redeem idempotency, concurrent requests, campaign budgets, refund/stock restoration, client grants, future-object default privileges and ledger immutability. These tests do not prove the connected production database has received the latest migrations or that full Supabase Auth email delivery works.
-- Current client/server configuration is bound to the `growta-rewardloop` tenant slug; customer self-service multi-tenant onboarding is not implemented.
-- Reward provider integration, formal fraud case handling, backup/restore drill and production alerting remain unverified or incomplete.
-- Sentry is not confirmed integrated in the inspected source. Redis infrastructure exists but application integration and safe usage are not confirmed. A tenant-aware CMS/control plane is not complete.
-- The account membership was previously added as super_admin, but membership does not prove that a successful admin login or end-to-end operation has been tested.
+- Production Auth email delivery and account confirmation are not verified; leaked-password protection remains disabled.
+- The settings console saves preferences only; it does not apply SMTP, Auth URL, signup policy or email templates to live Supabase Auth. Its test-email action remains a placeholder.
+- Current client/server configuration defaults to the `growta-rewardloop` tenant slug; customer self-service multi-tenant onboarding is not implemented.
+- Reward provider integration, formal fraud case handling, backup/restore drill and live alert delivery remain unverified or incomplete.
+- Sentry is not confirmed integrated in the inspected source. Redis infrastructure exists, but application integration and safe usage are not fully confirmed. A tenant-aware CMS/control plane is not complete.
+- An account's super_admin membership does not prove that successful admin login and every end-to-end privileged operation have been tested.
 
 ## Release decision
 

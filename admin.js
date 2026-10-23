@@ -3,6 +3,61 @@ const db=createClient("https://guhhuqxrobhuumwrypnc.supabase.co","sb_publishable
 const root=document.getElementById("admin-app"),out=document.getElementById("admin-toast"),signout=document.getElementById("admin-signout");let data=null,partnerQuery="",partnerStatus="all",selectedTenantSlug="",adminTenants=[],tenantContextFallback=false,pendingQrExport=null;const ADMIN_SCOPED_ACTIONS=new Set(["admin_dashboard","admin_audit_logs","admin_record_export","verify_partner","issue_qr_batch","revoke_qr_batch","resolve_redemption","set_campaign_status","create_campaign","set_point_value","create_product","set_product_status","update_product"]);const pages={partners:0,products:0,campaigns:0,batches:0,redemptions:0,audit:0};
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toast(s,bad=false){const e=document.createElement("div");e.className="toast"+(bad?" error":"");e.textContent=s;out.appendChild(e);setTimeout(()=>e.remove(),4000)}
+function openAdminDialog({title,description="",fields=[],confirmLabel="Continue",cancelLabel="Cancel",danger=false}){
+  return new Promise(resolve=>{
+    const dialog=document.createElement("dialog");
+    dialog.className="admin-dialog";
+    const fieldMarkup=fields.map(field=>{
+      const id="admin-dialog-"+field.name;
+      const attributes=[
+        field.required?"required":"",
+        Number.isInteger(field.minLength)?`minlength="${field.minLength}"`:"",
+        Number.isInteger(field.maxLength)?`maxlength="${field.maxLength}"`:"",
+        field.placeholder?`placeholder="${esc(field.placeholder)}"`:"",
+        field.autocomplete?`autocomplete="${esc(field.autocomplete)}"`:""
+      ].filter(Boolean).join(" ");
+      const value=esc(field.value??"");
+      const control=field.type==="textarea"
+        ? `<textarea id="${id}" name="${esc(field.name)}" ${attributes}>${value}</textarea>`
+        : `<input id="${id}" name="${esc(field.name)}" type="${esc(field.type||"text")}" value="${value}" ${attributes}>`;
+      return `<div class="field admin-dialog-field"><label for="${id}">${esc(field.label)}</label>${control}${field.hint?`<small>${esc(field.hint)}</small>`:""}</div>`;
+    }).join("");
+    dialog.innerHTML=`<form class="admin-dialog-form" novalidate><div class="admin-dialog-topline"><span class="admin-dialog-mark ${danger?"danger":""}" aria-hidden="true">${danger?"!":"G"}</span><span class="admin-dialog-kicker">GROWTA · ADMIN ACTION</span><button type="button" class="admin-dialog-close" data-dialog-close aria-label="Close dialog">×</button></div><h2 id="admin-dialog-title">${esc(title)}</h2>${description?`<p class="admin-dialog-description">${esc(description)}</p>`:""}<div class="admin-dialog-fields">${fieldMarkup}</div><div class="admin-dialog-actions"><button type="button" class="secondary-button" data-dialog-cancel>${esc(cancelLabel)}</button><button type="submit" class="${danger?"danger-button":"primary-button"}" data-dialog-confirm>${esc(confirmLabel)}</button></div></form>`;
+    dialog.setAttribute("aria-labelledby","admin-dialog-title");
+    document.body.appendChild(dialog);
+    let settled=false;
+    const finish=value=>{
+      if(settled)return;
+      settled=true;
+      if(dialog.open)dialog.close();
+      dialog.remove();
+      resolve(value);
+    };
+    dialog.querySelector("[data-dialog-close]").addEventListener("click",()=>finish(null));
+    dialog.querySelector("[data-dialog-cancel]").addEventListener("click",()=>finish(null));
+    dialog.addEventListener("cancel",event=>{event.preventDefault();finish(null)});
+    dialog.addEventListener("click",event=>{if(event.target===dialog)finish(null)});
+    dialog.querySelector("form").addEventListener("submit",event=>{
+      event.preventDefault();
+      const form=event.currentTarget;
+      const invalid=fields.find(field=>{
+        const input=form.elements.namedItem(field.name);
+        return !input || !input.checkValidity() || (field.required&& !String(input.value||"").trim()) || (field.trimMinLength&&String(input.value||"").trim().length<field.trimMinLength);
+      });
+      if(invalid){
+        const control=form.elements.namedItem(invalid.name);
+        if(control){control.setCustomValidity(invalid.trimMinLength&&String(control.value||"").trim().length<invalid.trimMinLength?`Enter at least ${invalid.trimMinLength} non-space characters.`:"");control.reportValidity();control.setCustomValidity("");control.focus();}
+        return;
+      }
+      const values=Object.fromEntries(fields.map(field=>[field.name,String(form.elements.namedItem(field.name)?.value??"")]));
+      finish(values);
+    });
+    dialog.showModal();
+    const focusTarget=dialog.querySelector("input,textarea")||dialog.querySelector(danger?"[data-dialog-cancel]":"[data-dialog-confirm]");
+    focusTarget?.focus();
+  });
+}
+async function confirmAdminAction(options){return (await openAdminDialog(options))!==null}
 async function call(action,payload={}){const tenantScope=ADMIN_SCOPED_ACTIONS.has(action)&&selectedTenantSlug?{tenant_slug:selectedTenantSlug}:{};const {data,error}=await db.functions.invoke("rewardloop-api",{body:{action,...tenantScope,...payload}});if(error){let message=error.message||"Request failed";try{const body=await error.context.clone().json();if(typeof body?.error==="string")message=body.error}catch{}throw new Error(message)}if(data?.ok===false)throw new Error(data.error||"Request failed");return data}
 function loginView(note=""){signout.classList.add("hidden");root.innerHTML=`<section class="auth-layout"><div class="auth-intro"><div class="eyebrow">GROWTA · OPERATIONS</div><h1>RewardLoop control room</h1><p>Review partner verification and manage QR issuance. Access requires approved tenant-admin membership.</p><div class="benefit-list"><div class="benefit"><span class="benefit-icon">✓</span><span>Server-verified permissions</span></div><div class="benefit"><span class="benefit-icon">✓</span><span>Audited QR issuance and revocation</span></div></div></div><section class="panel auth-panel"><h2>Administrator sign in</h2>${note?`<div class="alert warn">${esc(note)}</div>`:""}<form id="login-form" class="form-stack"><div class="field"><label>Email</label><input name="email" type="email" required autocomplete="username"></div><div class="field"><label>Password</label><input name="password" type="password" required minlength="8" autocomplete="current-password"></div><button class="primary-button wide">Sign in securely</button></form></section></section>`;document.getElementById("login-form").addEventListener("submit",async e=>{e.preventDefault();const f=new FormData(e.currentTarget);const {data,error}=await db.auth.signInWithPassword({email:String(f.get("email")).trim().toLowerCase(),password:String(f.get("password"))});if(error){loginView(/invalid login/i.test(error.message)?"Email or password is incorrect.":error.message);return}await refresh()})}
 function pager(name,info){if(!info)return "";const page=Math.max(0,Number(info.page)||0),size=Math.max(1,Number(info.page_size)||1),total=Math.max(0,Number(info.total)||0);if(total<=size)return "";const totalPages=Math.max(1,Math.ceil(total/size));return `<div class="history-item admin-pager"><span class="history-sub">Page ${page+1} of ${totalPages} · ${total.toLocaleString("en-IN")} total</span><div class="admin-actions"><button type="button" class="secondary-button" data-page-group="${esc(name)}" data-page-dir="-1" ${page<=0?"disabled":""}>Previous</button><button type="button" class="secondary-button" data-page-group="${esc(name)}" data-page-dir="1" ${page+1>=totalPages?"disabled":""}>Next</button></div></div>`;}
@@ -110,21 +165,19 @@ document.getElementById("download-qr-export")?.addEventListener("click",download
 document.getElementById("clear-qr-export")?.addEventListener("click",()=>{
   if(!pendingQrExport)return;
   const complete=pendingQrExport.complete===true;
-  const prompt=complete
+  const description=complete
     ?"Confirm you have securely saved and verified the downloaded QR CSV. The one-time tokens will be cleared from this browser session."
     :"This export is incomplete. Clearing it is irreversible and missing tokens cannot be recovered. Continue only if you have recorded the batch ID for reconciliation.";
-  if(!confirm(prompt))return;
+  if(!await confirmAdminAction({title:complete?"Clear one-time QR tokens?":"Clear incomplete QR export?",description,confirmLabel:complete?"Clear tokens":"Clear incomplete export",danger:true}))return;
   pendingQrExport=null;draw();
 });root.querySelector("#admin-tenant-select")?.addEventListener("change",async event=>{selectedTenantSlug=event.currentTarget.value;for(const key of Object.keys(pages))pages[key]=0;partnerQuery="";partnerStatus="all";await refresh()});
 root.querySelectorAll("[data-product-edit]").forEach(button=>button.addEventListener("click",async()=>{
   const currentName=button.dataset.name||"";
   const currentPack=button.dataset.packSize||"";
-  const name=prompt("Product name (SKU remains unchanged):",currentName);
-  if(name===null)return;
-  const pack_size=prompt("Pack size (leave blank to clear):",currentPack);
-  if(pack_size===null)return;
-  if(name.trim().length<2||name.trim().length>160||pack_size.trim().length>80)return toast("Check the product name and pack size.",true);
-  if(!confirm("Save product details? The change will be recorded in the audit log."))return;
+  const values=await openAdminDialog({title:"Edit product details",description:"Update the product name and pack size. The SKU remains unchanged, and the update is written to the audit log.",confirmLabel:"Save changes",fields:[{name:"name",label:"Product name",value:currentName,required:true,minLength:2,maxLength:160,trimMinLength:2,placeholder:"Product display name"},{name:"pack_size",label:"Pack size",value:currentPack,maxLength:80,placeholder:"e.g. 10 g",hint:"Optional. Leave blank to clear the existing pack size."}]});
+  if(!values)return;
+  const name=values.name.trim(),pack_size=values.pack_size.trim();
+  if(name.length<2||name.length>160||pack_size.length>80)return toast("Check the product name and pack size.",true);
   button.disabled=true;
   try{
     await call("update_product",{product_id:button.dataset.productEdit,name:name.trim(),pack_size:pack_size.trim()});
@@ -135,9 +188,13 @@ root.querySelectorAll("[data-product-edit]").forEach(button=>button.addEventList
 }));
 root.querySelectorAll("[data-product-status]").forEach(button=>button.addEventListener("click",async()=>{
   const active=button.dataset.active==="true";
-  const reason=active?"":(prompt("Reason for deactivating this product (minimum 5 characters):")||"");
-  if(!active&&reason.trim().length<5)return toast("A reason is required.",true);
-  if(!confirm(active?"Reactivate this product for future use?":"Deactivate this product? Existing QR history will be retained."))return;
+  let reason="";
+  if(!active){
+    const values=await openAdminDialog({title:"Deactivate product",description:"This product will no longer be available for new operations. Existing QR history is retained. Reason for deactivating this product: document why access to new operations should stop. The reason is written to the audit record.",confirmLabel:"Deactivate product",danger:true,fields:[{name:"reason",label:"Reason for deactivation",required:true,minLength:5,maxLength:500,trimMinLength:5,placeholder:"Explain why the product is being deactivated"}]});
+    if(!values)return;
+    reason=values.reason.trim();
+  }
+  if(!await confirmAdminAction({title:active?"Reactivate product?":"Confirm product deactivation",description:active?"This product will become available for future operations again.":"Product deactivation will be recorded. Existing QR history will not be deleted.",confirmLabel:active?"Reactivate product":"Confirm deactivation",danger:!active}))return;
   button.disabled=true;
   try{
     await call("set_product_status",{product_id:button.dataset.productStatus,active,reason});
@@ -198,7 +255,17 @@ if(exportPartners)exportPartners.addEventListener("click",async()=>{
   finally{if(exportPartners.isConnected)exportPartners.disabled=false}
 });
 
-const verifyHandler=async b=>{let reason=null;if(b.dataset.status!=="verified"){reason=prompt("Reason (minimum 5 characters):")||"";if(reason.trim().length<5)return toast("A reason is required.",true)}if(!confirm("Change partner status to "+b.dataset.status+"?"))return;try{await call("verify_partner",{partner_id:b.dataset.verify,status:b.dataset.status,reason});toast("Partner status updated.");await refresh()}catch(e){toast(e.message,true)}};
+const verifyHandler=async b=>{
+  const status=b.dataset.status;
+  let reason=null;
+  if(status!=="verified"){
+    const values=await openAdminDialog({title:status==="rejected"?"Reject partner":"Change partner status",description:"A reason is required for this decision and will be written to the audit log.",confirmLabel:status==="rejected"?"Reject partner":"Save status",danger:true,fields:[{name:"reason",label:"Decision reason",required:true,minLength:5,maxLength:500,trimMinLength:5,placeholder:"Describe the decision and supporting reason"}]});
+    if(!values)return;
+    reason=values.reason.trim();
+  }
+  if(!await confirmAdminAction({title:status==="verified"?"Verify this partner?":"Confirm partner status change",description:status==="verified"?"This partner will be marked as verified.":`This partner will be marked ${status}. The action and reason will be audited.`,confirmLabel:status==="verified"?"Verify partner":"Confirm change",danger:status!=="verified"}))return;
+  try{await call("verify_partner",{partner_id:b.dataset.verify,status,reason});toast("Partner status updated.");await refresh()}catch(e){toast(e.message,true)}
+};
 root.querySelectorAll("[data-verify]").forEach(b=>b.addEventListener("click",()=>verifyHandler(b)));
 const exportRedemptions=document.getElementById("export-redemptions");
 if(exportRedemptions)exportRedemptions.addEventListener("click",async()=>{
@@ -210,19 +277,32 @@ if(exportRedemptions)exportRedemptions.addEventListener("click",async()=>{
   }catch(error){toast("Export was not started because audit logging failed: "+String(error?.message||error),true)}
   finally{if(exportRedemptions.isConnected)exportRedemptions.disabled=false}
 });
-root.querySelectorAll("[data-revoke]").forEach(b=>b.addEventListener("click",async()=>{const reason=prompt("Reason for revocation (minimum 5 characters):")||"";if(reason.trim().length<5)return toast("A reason is required.",true);if(!confirm("Revoke all unclaimed codes in this batch?"))return;try{await call("revoke_qr_batch",{batch_id:b.dataset.revoke,reason});toast("Batch revoked.");await refresh()}catch(e){toast(e.message,true)}}));
+root.querySelectorAll("[data-revoke]").forEach(b=>b.addEventListener("click",async()=>{
+  const values=await openAdminDialog({title:"Revoke QR batch",description:"All unclaimed codes in this batch will be disabled. Claims already posted are not reversed. Record a reason for audit review.",confirmLabel:"Revoke batch",danger:true,fields:[{name:"reason",label:"Reason for revocation",required:true,minLength:5,maxLength:500,trimMinLength:5,placeholder:"Explain why this batch must be revoked"}]});
+  if(!values)return;
+  if(!await confirmAdminAction({title:"Confirm QR batch revocation",description:"This action disables all unclaimed codes in the selected batch and cannot be undone from this screen.",confirmLabel:"Revoke unclaimed codes",danger:true}))return;
+  try{await call("revoke_qr_batch",{batch_id:b.dataset.revoke,reason:values.reason.trim()});toast("Batch revoked.");await refresh()}catch(e){toast(e.message,true)}
+}));
 root.querySelectorAll("[data-resolve]").forEach(b=>b.addEventListener("click",async()=>{
   const status=b.dataset.status;
   let reason="";
-  if(status!=="fulfilled"){reason=prompt("Reason for cancellation and refund (minimum 5 characters):")||"";if(reason.trim().length<5)return toast("A reason is required.",true)}
-  if(!confirm(status==="fulfilled"?"Mark this redemption as fulfilled? Points will remain spent.":"Cancel this redemption, refund points, and restore reward stock?"))return;
+  if(status!=="fulfilled"){
+    const values=await openAdminDialog({title:"Cancel redemption and refund",description:"Cancellation refunds points and restores finite reward stock exactly once. A reason is required and will be audited.",confirmLabel:"Continue to confirmation",danger:true,fields:[{name:"reason",label:"Cancellation reason",required:true,minLength:5,maxLength:500,trimMinLength:5,placeholder:"Explain why this redemption is cancelled"}]});
+    if(!values)return;
+    reason=values.reason.trim();
+  }
+  if(!await confirmAdminAction({title:status==="fulfilled"?"Mark redemption fulfilled?":"Confirm cancellation and refund",description:status==="fulfilled"?"Points remain spent after fulfilment.":"The redemption will be cancelled, points refunded, and finite reward stock restored in the same operation.",confirmLabel:status==="fulfilled"?"Mark fulfilled":"Cancel and refund",danger:status!=="fulfilled"}))return;
   try{await call("resolve_redemption",{redemption_id:b.dataset.resolve,status,reason});toast(status==="fulfilled"?"Redemption marked fulfilled.":"Redemption cancelled and points refunded.");await refresh()}catch(e){toast(e.message,true)}
 }));
 root.querySelectorAll("[data-campaign-status]").forEach(b=>b.addEventListener("click",async()=>{
   const status=b.dataset.status;
   let reason="";
-  if(status!=="active"){reason=prompt("Reason for "+status+" (minimum 5 characters):")||"";if(reason.trim().length<5)return toast("A reason is required.",true)}
-  if(!confirm(status==="active"?"Activate this campaign? QR claims will become eligible within the campaign dates.":status==="paused"?"Pause this campaign? New claims should stop.":"Archive this draft/paused campaign?"))return;
+  if(status!=="active"){
+    const values=await openAdminDialog({title:status==="paused"?"Pause campaign":"Archive campaign",description:"Status transitions are audited. Enter a business reason to document the change.",confirmLabel:status==="paused"?"Continue":"Continue to archive",danger:true,fields:[{name:"reason",label:"Reason for status change",required:true,minLength:5,maxLength:500,trimMinLength:5,placeholder:"Record why this campaign is changing state"}]});
+    if(!values)return;
+    reason=values.reason.trim();
+  }
+  if(!await confirmAdminAction({title:status==="active"?"Activate campaign?":status==="paused"?"Confirm campaign pause":"Confirm campaign archive",description:status==="active"?"QR claims can become eligible within the configured campaign dates.":status==="paused"?"New claims should stop after the campaign is paused.":"Only draft or paused campaigns can be archived from this screen.",confirmLabel:status==="active"?"Activate campaign":status==="paused"?"Pause campaign":"Archive campaign",danger:status!=="active"}))return;
   try{await call("set_campaign_status",{campaign_id:b.dataset.campaignStatus,status,reason});toast("Campaign status updated.");await refresh()}catch(e){toast(e.message,true)}
 }));
 document.getElementById("campaign-create").addEventListener("submit",async e=>{
@@ -231,14 +311,14 @@ document.getElementById("campaign-create").addEventListener("submit",async e=>{
   if(!Number.isFinite(budget)||budget<0||budget>10000000000)return toast("Enter a valid budget.",true);
   const starts=String(f.get("starts_at")||""),ends=String(f.get("ends_at")||"");
   if(starts&&ends&&new Date(ends)<=new Date(starts))return toast("End time must be after start time.",true);
-  if(!confirm("Create this campaign as a draft? It will not accept QR claims until activated."))return;
+  if(!await confirmAdminAction({title:"Create draft campaign?",description:"The campaign will remain a draft and will not accept QR claims until separately activated.",confirmLabel:"Create draft"}))return;
   try{await call("create_campaign",{name,starts_at:starts?new Date(starts).toISOString():null,ends_at:ends?new Date(ends).toISOString():null,budget_minor_units:Math.round(budget*100)});toast("Draft campaign created.");await refresh()}catch(e){toast(e.message,true)}
 });
 document.getElementById("issue").addEventListener("submit",async e=>{
   e.preventDefault();
   if(pendingQrExport){toast("Secure or explicitly clear the previous one-time QR export before issuing another batch.",true);return;}
   const f=new FormData(e.currentTarget),count=Number(f.get("count")),points_value=Number(f.get("points"));
-  if(!confirm("Issue "+count+" unique tokens worth "+points_value+" points each?"))return;
+  if(!await confirmAdminAction({title:"Issue QR code batch?",description:`This will create ${count.toLocaleString("en-IN")} unique tokens worth ${points_value.toLocaleString("en-IN")} points each. Tokens are shown once; securely store the exported CSV.`,confirmLabel:"Issue QR codes",danger:true}))return;
   const submit=e.currentTarget.querySelector("button[type=submit]");
   if(submit)submit.disabled=true;
   try{

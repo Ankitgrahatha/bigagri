@@ -21,6 +21,8 @@ test("reconciliation queue requires active tenant super-admin membership and bou
 
 test("reconciliation endpoint validates session and never mutates payment state", () => {
   assert.match(endpoint, /db\.auth\.getUser\(tokenMatch\[1\]\)/i);
+  assert.match(endpoint, /req\.method === "OPTIONS"/);
+  assert.match(endpoint, /ALLOWED_ORIGINS/);
   assert.match(endpoint, /list_saas_checkout_reconciliation_internal/);
   assert.match(endpoint, /Cache-Control.*no-store/);
   assert.doesNotMatch(endpoint, /finalize_saas_checkout|fail_saas_checkout|UPDATE private\.saas_/i);

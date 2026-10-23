@@ -28,6 +28,10 @@ test("checkout reservation and finalization are service-role-only and idempotent
 
 test("checkout endpoint authenticates the Supabase user and validates request boundaries", () => {
   assert.match(endpoint, /db\.auth\.getUser\(tokenMatch\[1\]\)/i);
+  assert.match(endpoint, /req\.method === "OPTIONS"/);
+  assert.match(endpoint, /Access-Control-Allow-Origin/);
+  assert.match(endpoint, /idempotency-key/i);
+  assert.match(endpoint, /ALLOWED_ORIGINS/);
   assert.match(endpoint, /reserve_saas_checkout_internal/);
   assert.match(endpoint, /Idempotency-Key|idempotency-key/i);
   assert.match(endpoint, /readLimitedBody/);

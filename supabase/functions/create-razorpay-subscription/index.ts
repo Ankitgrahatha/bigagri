@@ -3,11 +3,23 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 const MAX_BODY_BYTES = 4096;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const IDEMPOTENCY_RE = /^[A-Za-z0-9._:-]{16,128}$/;
-const respond = (status: number, body: Record<string, unknown>) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
-  });
+const DEFAULT_ALLOWED_ORIGINS = ["https://bigagri.vercel.app"];
+const ALLOWED_ORIGINS = new Set([
+  ...DEFAULT_ALLOWED_ORIGINS,
+  ...(Deno.env.get("ALLOWED_ORIGINS") ?? "").split(",").map((value) => value.trim()).filter(Boolean),
+]);
+const CORS_HEADERS = {
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, idempotency-key",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin",
+  "Content-Type": "application/json; charset=utf-8",
+  "Cache-Control": "no-store",
+};
+function respond(status: number, body: Record<string, unknown>, origin?: string | null) {
+  const headers = new Headers(CORS_HEADERS);
+  if (origin && ALLOWED_ORIGINS.has(origin)) headers.set("Access-Control-Allow-Origin", origin);
+  return new Response(JSON.stringify(body), { status, headers });
+}
 
 async function readLimitedBody(req: Request): Promise<Uint8Array | null> {
   const reader = req.body?.getReader();
@@ -46,18 +58,25 @@ function parseCycleCount(value: string | undefined): number | null {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method !== "POST") return respond(405, { ok: false, error: "method_not_allowed" });
+  const origin = req.headers.get("origin");
+  const reply = (status: number, body: Record<string, unknown>) => respond(status, body, origin);
+  if (req.method === "OPTIONS") {
+    if (!origin || !ALLOWED_ORIGINS.has(origin)) return reply(403, { ok: false, error: "origin_not_allowed" });
+    return new Response(null, { status: 204, headers: { ...CORS_HEADERS, "Access-Control-Allow-Origin": origin } });
+  }
+  if (origin && !ALLOWED_ORIGINS.has(origin)) return reply(403, { ok: false, error: "origin_not_allowed" });
+  if (req.method !== "POST") return reply(405, { ok: false, error: "method_not_allowed" });
   const declaredLength = Number(req.headers.get("content-length") ?? "0");
   if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
-    return respond(413, { ok: false, error: "payload_too_large" });
+    return reply(413, { ok: false, error: "payload_too_large" });
   }
 
   const authorization = req.headers.get("authorization") ?? "";
   const tokenMatch = /^Bearer\s+(.+)$/i.exec(authorization);
   const idempotencyKey = req.headers.get("idempotency-key")?.trim() ?? "";
-  if (!tokenMatch) return respond(401, { ok: false, error: "authentication_required" });
+  if (!tokenMatch) return reply(401, { ok: false, error: "authentication_required" });
   if (!IDEMPOTENCY_RE.test(idempotencyKey)) {
-    return respond(400, { ok: false, error: "invalid_idempotency_key" });
+    return reply(400, { ok: false, error: "invalid_idempotency_key" });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -65,19 +84,19 @@ Deno.serve(async (req: Request) => {
   const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
   const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
   if (!supabaseUrl || !serviceRoleKey || !razorpayKeyId || !razorpayKeySecret) {
-    return respond(503, { ok: false, error: "service_not_configured" });
+    return reply(503, { ok: false, error: "service_not_configured" });
   }
 
   const bodyBytes = await readLimitedBody(req);
-  if (!bodyBytes) return respond(413, { ok: false, error: "payload_too_large_or_unreadable" });
+  if (!bodyBytes) return reply(413, { ok: false, error: "payload_too_large_or_unreadable" });
   let body: unknown;
   try {
     body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bodyBytes));
   } catch {
-    return respond(400, { ok: false, error: "invalid_request" });
+    return reply(400, { ok: false, error: "invalid_request" });
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return respond(400, { ok: false, error: "invalid_request" });
+    return reply(400, { ok: false, error: "invalid_request" });
   }
 
   const input = body as Record<string, unknown>;
@@ -87,7 +106,7 @@ Deno.serve(async (req: Request) => {
   if (!UUID_RE.test(tenantId) || !UUID_RE.test(planVersionId)
       || (billingInterval !== "monthly" && billingInterval !== "yearly")
       || Object.keys(input).some((key) => !["tenant_id", "plan_version_id", "billing_interval"].includes(key))) {
-    return respond(400, { ok: false, error: "invalid_request" });
+    return reply(400, { ok: false, error: "invalid_request" });
   }
 
   const totalCount = parseCycleCount(
@@ -95,13 +114,13 @@ Deno.serve(async (req: Request) => {
       ? Deno.env.get("RAZORPAY_MONTHLY_TOTAL_COUNT")
       : Deno.env.get("RAZORPAY_YEARLY_TOTAL_COUNT"),
   );
-  if (totalCount === null) return respond(503, { ok: false, error: "billing_cycle_policy_not_configured" });
+  if (totalCount === null) return reply(503, { ok: false, error: "billing_cycle_policy_not_configured" });
 
   const db = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: authData, error: authError } = await db.auth.getUser(tokenMatch[1]);
-  if (authError || !authData.user) return respond(401, { ok: false, error: "invalid_session" });
+  if (authError || !authData.user) return reply(401, { ok: false, error: "invalid_session" });
 
   const { data: reservationData, error: reservationError } = await db.rpc("reserve_saas_checkout_internal", {
     p_actor_user_id: authData.user.id,
@@ -112,25 +131,25 @@ Deno.serve(async (req: Request) => {
   });
   if (reservationError) {
     console.error("saas_checkout_reservation_failed", { code: reservationError.code ?? "unknown" });
-    return respond(503, { ok: false, error: "checkout_reservation_unavailable" });
+    return reply(503, { ok: false, error: "checkout_reservation_unavailable" });
   }
 
   const reservation = reservationData as Record<string, unknown> | null;
   if (!reservation || reservation.ok !== true) {
     const code = typeof reservation?.error === "string" ? reservation.error : "checkout_reservation_failed";
-    if (code === "forbidden") return respond(403, { ok: false, error: code });
-    if (code === "plan_unavailable" || code === "plan_not_configured") return respond(422, { ok: false, error: code });
+    if (code === "forbidden") return reply(403, { ok: false, error: code });
+    if (code === "plan_unavailable" || code === "plan_not_configured") return reply(422, { ok: false, error: code });
     if (code === "checkout_reconciliation_required") {
-      return respond(409, { ok: false, error: code, subscription_id: reservation?.subscription_id });
+      return reply(409, { ok: false, error: code, subscription_id: reservation?.subscription_id });
     }
     if (code === "pending_checkout_exists" || code === "idempotency_key_conflict" || code === "subscription_already_exists") {
-      return respond(409, { ok: false, error: code });
+      return reply(409, { ok: false, error: code });
     }
-    return respond(400, { ok: false, error: code });
+    return reply(400, { ok: false, error: code });
   }
 
   if (reservation.reused === true) {
-    return respond(200, {
+    return reply(200, {
       ok: true,
       reused: true,
       subscription_id: reservation.subscription_id,
@@ -142,7 +161,7 @@ Deno.serve(async (req: Request) => {
       || typeof reservation.provider_plan_id !== "string"
       || typeof reservation.amount_minor !== "number"
       || typeof reservation.currency !== "string") {
-    return respond(503, { ok: false, error: "checkout_reservation_invalid_response" });
+    return reply(503, { ok: false, error: "checkout_reservation_invalid_response" });
   }
 
   let providerResponse: Response;
@@ -170,7 +189,7 @@ Deno.serve(async (req: Request) => {
     // A network timeout is ambiguous: Razorpay may have created the subscription.
     // Keep the reservation blocked and require provider reconciliation; never retry
     // creation automatically with a new provider subscription.
-    return respond(503, {
+    return reply(503, {
       ok: false,
       error: "checkout_reconciliation_required",
       subscription_id: reservation.subscription_id,
@@ -185,11 +204,11 @@ Deno.serve(async (req: Request) => {
       });
       if (error) {
         console.error("saas_checkout_rejection_persist_failed", { code: error.code ?? "unknown" });
-        return respond(503, { ok: false, error: "checkout_reconciliation_required", subscription_id: reservation.subscription_id });
+        return reply(503, { ok: false, error: "checkout_reconciliation_required", subscription_id: reservation.subscription_id });
       }
-      return respond(422, { ok: false, error: "provider_rejected_checkout" });
+      return reply(422, { ok: false, error: "provider_rejected_checkout" });
     }
-    return respond(503, {
+    return reply(503, {
       ok: false,
       error: "checkout_reconciliation_required",
       subscription_id: reservation.subscription_id,
@@ -202,13 +221,13 @@ Deno.serve(async (req: Request) => {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid response");
     provider = parsed as Record<string, unknown>;
   } catch {
-    return respond(503, { ok: false, error: "checkout_reconciliation_required", subscription_id: reservation.subscription_id });
+    return reply(503, { ok: false, error: "checkout_reconciliation_required", subscription_id: reservation.subscription_id });
   }
 
   const providerSubscriptionId = typeof provider.id === "string" ? provider.id : "";
   const checkoutUrl = typeof provider.short_url === "string" ? provider.short_url : "";
   if (!providerSubscriptionId || !/^https:\/\/(rzp\.io|razorpay\.com)\//.test(checkoutUrl)) {
-    return respond(503, { ok: false, error: "checkout_reconciliation_required", subscription_id: reservation.subscription_id });
+    return reply(503, { ok: false, error: "checkout_reconciliation_required", subscription_id: reservation.subscription_id });
   }
 
   const { data: finalizedData, error: finalizeError } = await db.rpc("finalize_saas_checkout_internal", {
@@ -221,10 +240,10 @@ Deno.serve(async (req: Request) => {
     console.error("saas_checkout_finalize_failed", { code: finalizeError?.code ?? "state_conflict" });
     // Do not return the checkout URL unless its provider ID is durably bound to the
     // local subscription; the webhook processor depends on this association.
-    return respond(503, { ok: false, error: "checkout_reconciliation_required", subscription_id: reservation.subscription_id });
+    return reply(503, { ok: false, error: "checkout_reconciliation_required", subscription_id: reservation.subscription_id });
   }
 
-  return respond(201, {
+  return reply(201, {
     ok: true,
     reused: false,
     subscription_id: reservation.subscription_id,

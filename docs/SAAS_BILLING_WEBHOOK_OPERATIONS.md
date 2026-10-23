@@ -16,7 +16,7 @@ Configure these only in the Supabase project’s Edge Function secrets store:
 - `RAZORPAY_MONTHLY_TOTAL_COUNT` and `RAZORPAY_YEARLY_TOTAL_COUNT`: explicit billing-cycle caps from 1 to 100; subscriptions stop after the configured count.
 - Platform-provided `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` remain server-side only.
 
-Never commit secret values, put them in the PWA, or log webhook bodies/signatures/payment details.
+Never commit secret values, put them in the PWA, or log webhook bodies/signatures/payment details. Configure `ALLOWED_ORIGINS` as a comma-separated list of exact browser origins for approved Vercel preview/custom domains; do not use a wildcard. Billing endpoints handle `OPTIONS` preflight and allow the checkout `Idempotency-Key` header.
 
 ## Checkout behavior and recovery
 

@@ -15,6 +15,9 @@ test("billing portal exposes only published plans and tenant-scoped subscription
 });
 test("billing portal endpoint verifies the Supabase user and strict tenant-only request", () => {
   assert.match(endpoint, /db\.auth\.getUser\(tokenMatch\[1\]\)/i);
+  assert.match(endpoint, /req\.method === "OPTIONS"/);
+  assert.match(endpoint, /Access-Control-Allow-Origin/);
+  assert.match(endpoint, /ALLOWED_ORIGINS/);
   assert.match(endpoint, /get_saas_billing_portal_internal/);
   assert.match(endpoint, /MAX_BODY_BYTES = 2048/);
   assert.match(endpoint, /Object\.keys\(body\)\.some\(\(key\) => key !== "tenant_id"\)/);

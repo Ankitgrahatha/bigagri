@@ -67,3 +67,10 @@ test("live schema parity probe is read-only and matches the captured catalog fin
  assert.match(liveParitySql,/baseline_matches/);
  assert.doesNotMatch(liveParitySql,/\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|GRANT|REVOKE)\b/i);
 });
+
+
+test("live schema parity probe checks captured default ACL fingerprint",()=>{
+ assert.match(liveParitySql,/default_acl_match/);
+ assert.match(liveParitySql,/642e160f2667b54bde03a979af4eb14bb818281cb3f628f4910ab24426bb1792/);
+ assert.match(liveParitySql,/baseline_matches AND default_acl_match|default_acl_match AND function_acl_match/);
+});

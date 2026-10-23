@@ -38,6 +38,8 @@ test("acceptance binds a one-time hash to the authenticated, confirmed email own
   assert.match(migration, /IF v_email_confirmed_at IS NULL THEN[\s\S]*?email_not_confirmed/);
   assert.match(migration, /WHERE token_hash=p_token_hash FOR UPDATE/);
   assert.match(migration, /v_invitation\.email <> v_user_email/);
+  assert.match(migration, /role=v_invitation\.role::public\.partner_role FOR UPDATE/);
+  assert.match(migration, /v_invitation\.role::public\.partner_role,'active'/);
   assert.match(migration, /invitation_email_mismatch/);
   assert.match(migration, /v_invitation\.expires_at <= now\(\)/);
   assert.match(migration, /tenant_invitation_accepted/);

@@ -71,11 +71,26 @@ Deno.serve(async (req: Request) => {
   if (!result || result.ok !== true) {
     return respond(500, { ok: false, error: "processor_failed" });
   }
+  // Health is aggregate-only. If the metrics query fails, preserve the completed
+  // batch result and surface the missing telemetry rather than replaying the batch.
+  const { data: healthData, error: healthError } = await db.rpc("get_saas_payment_webhook_health_internal");
+  const health = healthData as Record<string, unknown> | null;
+  if (healthError || !health || health.ok !== true) {
+    console.error("razorpay_webhook_health_metrics_unavailable", { code: healthError?.code ?? "invalid_health_result" });
+  }
   return respond(200, {
     ok: true,
     processed: result.processed,
     failed: result.failed,
     exhausted: result.exhausted,
     batch_size: result.batch_size,
+    health_metrics_available: !healthError && health?.ok === true,
+    ...(healthError || !health || health.ok !== true ? {} : {
+      pending_received: health.received,
+      retryable_failed: health.retryable_failed,
+      exhausted_total: health.exhausted,
+      stale_processing: health.stale_processing,
+      oldest_unprocessed_age_seconds: health.oldest_unprocessed_age_seconds,
+    }),
   });
 });

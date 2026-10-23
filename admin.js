@@ -61,19 +61,49 @@ ${data.capabilities?.product_management===true ? `<section class="panel admin-pa
 const adminSections=[...root.querySelectorAll(".admin-panel")];
 const sectionNav=document.createElement("nav");
 sectionNav.className="admin-section-nav";
-sectionNav.setAttribute("aria-label","Admin sections");
-const sectionLinks=adminSections.map(section=>{
+sectionNav.setAttribute("aria-label","Workspace navigation");
+const sectionLinks=adminSections.map((section,index)=>{
   const heading=section.querySelector("h2");
   if(!heading)return "";
   const label=heading.textContent.trim();
   const slug=label.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-  const id="admin-section-"+slug;
+  const id="admin-section-"+slug+"-"+(index+1);
   section.id=id;
-  return '<a href="#'+id+'">'+esc(label)+'</a>';
+  return '<a href="#'+id+'" data-admin-nav-link><span class="admin-nav-index" aria-hidden="true">'+String(index+1).padStart(2,"0")+'</span><span class="admin-nav-label">'+esc(label)+'</span><span class="admin-nav-arrow" aria-hidden="true">↗</span></a>';
 }).filter(Boolean);
 if(sectionLinks.length){
-  sectionNav.innerHTML='<span class="admin-section-nav-label">Jump to section</span>'+sectionLinks.join("");
+  sectionNav.innerHTML='<div class="admin-section-nav-label">OPERATIONS</div>'+sectionLinks.join("");
   root.querySelector(".admin-title")?.insertAdjacentElement("afterend",sectionNav);
+  const pageTitle=root.querySelector(".admin-title");
+  if(pageTitle){
+    const trailingNodes=[];
+    let sibling=pageTitle.nextElementSibling;
+    while(sibling){const next=sibling.nextElementSibling;trailingNodes.push(sibling);sibling=next;}
+    const sidebar=document.createElement("aside");
+    sidebar.className="admin-sidebar";
+    sidebar.setAttribute("aria-label","Admin workspace sidebar");
+    sidebar.innerHTML='<div class="admin-sidebar-brand"><span class="admin-sidebar-mark" aria-hidden="true">G</span><div><span class="admin-sidebar-overline">WORKSPACE</span><strong>RewardLoop</strong></div></div><p class="admin-sidebar-description">Tenant operations</p><div class="admin-sidebar-nav"></div><div class="admin-sidebar-footer"><span class="admin-security-mark" aria-hidden="true">✓</span><span><strong>Protected workspace</strong><small>Privileged actions are audited</small></span></div>';
+    sidebar.querySelector(".admin-sidebar-nav").appendChild(sectionNav);
+    const content=document.createElement("div");
+    content.className="admin-content-stack";
+    trailingNodes.filter(node=>node!==sectionNav).forEach(node=>content.appendChild(node));
+    const workspace=document.createElement("div");
+    workspace.className="admin-workspace";
+    workspace.append(sidebar,content);
+    root.appendChild(workspace);
+  }
+  const navLinks=[...sectionNav.querySelectorAll("[data-admin-nav-link]")];
+  const setActiveLink=activeLink=>{
+    navLinks.forEach(link=>{
+      const active=link===activeLink;
+      link.classList.toggle("active",active);
+      if(active)link.setAttribute("aria-current","location");
+      else link.removeAttribute("aria-current");
+    });
+  };
+  const initialLink=navLinks.find(link=>link.hash===window.location.hash)||navLinks[0];
+  if(initialLink)setActiveLink(initialLink);
+  navLinks.forEach(link=>link.addEventListener("click",()=>setActiveLink(link)));
 }
 document.getElementById("refresh").addEventListener("click",refresh);
 document.getElementById("download-qr-export")?.addEventListener("click",downloadPendingQrExport);

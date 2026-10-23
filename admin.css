@@ -140,3 +140,28 @@
 @media(prefers-reduced-motion:reduce){
   .admin-console *, .admin-console *::before, .admin-console *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
+
+/* Accessible in-app dialogs for audited operational actions. */
+.admin-dialog{width:min(520px,calc(100vw - 28px));max-width:520px;max-height:min(88vh,760px);overflow:auto;padding:0;border:1px solid #dce6d9;border-radius:20px;background:#fff;color:var(--ink,#17251b);box-shadow:0 28px 100px #10231940}
+.admin-dialog::backdrop{background:#14261b80;backdrop-filter:blur(4px)}
+.admin-dialog-form{display:grid;gap:0;padding:24px}
+.admin-dialog-topline{display:flex;align-items:center;gap:9px;margin-bottom:18px}
+.admin-dialog-mark{display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:10px;background:var(--green,#173d2b);color:var(--lime,#d3f27d);font-size:14px;font-weight:900}
+.admin-dialog-mark.danger{background:#fff0ed;color:#a6382b;border:1px solid #f1d4ce}
+.admin-dialog-kicker{color:#7b897e;font-size:9px;font-weight:900;letter-spacing:.14em}
+.admin-dialog-close{display:grid;place-items:center;width:32px;height:32px;margin-left:auto;border:1px solid #e2e9df;border-radius:10px;background:#fff;color:#69776c;font-size:20px;line-height:1}
+.admin-dialog-close:hover{background:#f5f8f3;color:var(--green,#173d2b)}
+.admin-dialog h2{margin:0;color:var(--green,#173d2b);font-size:clamp(20px,4vw,25px);letter-spacing:-.04em;line-height:1.2}
+.admin-dialog-description{margin:11px 0 0;color:#66746a;font-size:13px;line-height:1.7}
+.admin-dialog-fields{display:grid;gap:14px;margin-top:17px}
+.admin-dialog-field{display:grid;gap:7px;min-width:0}
+.admin-dialog-field label{color:#405346;font-size:12px;font-weight:800}
+.admin-dialog-field input,.admin-dialog-field textarea{width:100%;min-height:44px;padding:11px 12px;border:1px solid #dce5da;border-radius:11px;background:#fcfdfb;color:#223429;font:inherit;font-size:13px;outline:none}
+.admin-dialog-field textarea{min-height:112px;resize:vertical}
+.admin-dialog-field input:focus,.admin-dialog-field textarea:focus{border-color:#528663;box-shadow:0 0 0 3px #52866318}
+.admin-dialog-field small{color:#829086;font-size:11px;line-height:1.5}
+.admin-dialog-actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;margin-top:22px;padding-top:16px;border-top:1px solid #edf1eb}
+.admin-dialog-actions button{min-height:40px;padding:10px 15px;border-radius:10px;font-size:12px;font-weight:800}
+.admin-dialog-actions button:focus-visible,.admin-dialog-close:focus-visible{outline:3px solid #7ca48666;outline-offset:2px}
+@media(max-width:540px){.admin-dialog{width:calc(100vw - 20px);max-height:90vh;border-radius:16px}.admin-dialog-form{padding:19px}.admin-dialog-actions{display:grid;grid-template-columns:1fr 1fr}.admin-dialog-actions button{width:100%;padding:10px 8px}}
+@media(prefers-reduced-motion:reduce){.admin-dialog *,.admin-dialog *::before,.admin-dialog *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}

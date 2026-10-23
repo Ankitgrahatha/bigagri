@@ -43,3 +43,35 @@ test("admin controls retain visible keyboard focus and reduced-motion support", 
   assert.match(css, /\.primary-button:focus-visible/);
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
 });
+
+test("high-impact admin actions use accessible in-app dialogs instead of browser prompts", () => {
+  assert.match(admin, /function openAdminDialog\(\{title,description=/);
+  assert.match(admin, /dialog\.showModal\(\)/);
+  assert.match(admin, /aria-labelledby/);
+  assert.match(admin, /data-dialog-cancel/);
+  assert.match(admin, /event=>\{event\.preventDefault\(\);finish\(null\)\}/);
+  assert.doesNotMatch(admin, /\b(?:window\.)?prompt\s*\(/);
+  assert.doesNotMatch(admin, /\b(?:window\.)?confirm\s*\(/);
+});
+
+test("audited destructive actions collect reasons and require a separate final confirmation", () => {
+  assert.match(admin, /title:"Deactivate product"[\s\S]*?name:"reason"[\s\S]*?trimMinLength:5/);
+  assert.match(admin, /title:"Revoke QR batch"[\s\S]*?name:"reason"[\s\S]*?trimMinLength:5/);
+  assert.match(admin, /title:"Cancel redemption and refund"[\s\S]*?name:"reason"[\s\S]*?trimMinLength:5/);
+  assert.match(admin, /title:status==="paused"\?"Pause campaign":"Archive campaign"[\s\S]*?name:"reason"[\s\S]*?trimMinLength:5/);
+  assert.match(admin, /confirmAdminAction\(\{title:"Confirm QR batch revocation"/);
+  assert.match(admin, /confirmAdminAction\(\{title:status==="fulfilled"\?"Mark redemption fulfilled\?"/);
+});
+
+test("product edits are handled in one validated dialog and do not permit blank names", () => {
+  assert.match(admin, /title:"Edit product details"[\s\S]*?name:"name",label:"Product name"[\s\S]*?required:true,minLength:2,maxLength:160/);
+  assert.match(admin, /name:"pack_size",label:"Pack size"[\s\S]*?maxLength:80/);
+  assert.match(admin, /if\(!values\)return;/);
+});
+
+test("in-app admin dialogs have a clear overlay, keyboard focus styles, and small-screen layout", () => {
+  assert.match(css, /\.admin-dialog::backdrop/);
+  assert.match(css, /\.admin-dialog-actions button:focus-visible/);
+  assert.match(css, /@media\(max-width:540px\)\{\.admin-dialog/);
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)\{\.admin-dialog/);
+});

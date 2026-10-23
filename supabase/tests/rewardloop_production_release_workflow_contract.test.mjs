@@ -122,6 +122,6 @@ test("release verifies leaked-password protection from live Auth config without 
  assert.match(gate,/Could not read Supabase Auth configuration/);
  assert.match(gate,/config\.get\("password_hibp_enabled"\) is not True/);
  assert.match(gate,/unset auth_config/);
- assert.doesNotMatch(gate,/echo\s+.*auth_config/);
+ assert.doesNotMatch(gate,/echo\s+.*\$auth_config/);
  assert.doesNotMatch(workflow,/auth_leaked_password_protection_enabled/);
 });

@@ -27,3 +27,10 @@ test("test-email placeholder is visibly unavailable and cannot be triggered", ()
   assert.match(html, /This page cannot send a test message/);
   assert.doesNotMatch(ui, /\$\("testEmail"\)\.addEventListener/);
 });
+
+test("authentication controls clearly disclose that values are preferences only", () => {
+  assert.match(html, /Authentication preferences/);
+  assert.match(html, /do not change Supabase Auth site URL, redirect allowlist, signup policy, or email-confirmation enforcement/i);
+  assert.match(html, /Save authentication preferences/);
+  assert.match(ui, /they do not change live Supabase Auth configuration/i);
+});

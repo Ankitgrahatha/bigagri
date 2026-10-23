@@ -133,6 +133,37 @@ jobs:
           fi
           echo "PASS: required billing secret names are configured (values were not printed)."
 
+      - name: Verify live schema fingerprints before migration-history repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/rewardloop-live-schema-query.json
+          import json
+          from pathlib import Path
+          print(json.dumps({"query": Path("supabase/ops/verify_live_schema_baseline.sql").read_text()}))
+          PY
+          response="$(curl --fail-with-body --silent --show-error --max-time 60 \
+            --request POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query" \
+            --header "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data-binary @/tmp/rewardloop-live-schema-query.json)"
+          python3 - "$response" <<'PY'
+          import json, sys
+          try:
+              payload = json.loads(sys.argv[1])
+          except Exception:
+              raise SystemExit("Live schema parity endpoint returned invalid JSON; refusing production mutation.")
+          if isinstance(payload, dict):
+              rows = payload.get("result", payload.get("data", payload.get("rows")))
+              if rows is None and "baseline_matches" in payload:
+                  rows = [payload]
+          else:
+              rows = payload
+          if not isinstance(rows, list) or len(rows) != 1 or rows[0].get("baseline_matches") is not True:
+              raise SystemExit("Live schema does not match the captured baseline, or the parity response was unexpected. No migration history or DDL was changed.")
+          print("PASS: live schema fingerprints, function security and table ACLs match the captured baseline.")
+          PY
+
       - name: Reconcile only the verified baseline and validate migration allowlist
         shell: bash
         run: |

@@ -11,7 +11,7 @@ DECLARE
   v_wrong_email constant uuid := '00000000-0000-4000-8000-00000000a204';
   v_unconfirmed constant uuid := '00000000-0000-4000-8000-00000000a205';
   v_existing_admin constant uuid := '00000000-0000-4000-8000-00000000a206';
-  v_inactive_member constant uuid := '00000000-0000-4000-8000-00000000a207';
+  v_suspended_member constant uuid := '00000000-0000-4000-8000-00000000a207';
   v_result jsonb;
   v_invitation_id uuid;
   v_count integer;
@@ -24,7 +24,7 @@ BEGIN
     (v_wrong_email,'wrong@example.com',now()),
     (v_unconfirmed,'unconfirmed-invite@example.com',NULL),
     (v_existing_admin,'existing-admin@example.com',now()),
-    (v_inactive_member,'inactive-member@example.com',now());
+    (v_suspended_member,'suspended-member@example.com',now());
 
   INSERT INTO public.tenants(id,name,slug,status,default_locale,public_catalog_enabled)
   VALUES
@@ -36,7 +36,7 @@ BEGIN
     (v_tenant_a,v_admin_a,'brand_admin','active'),
     (v_tenant_b,v_admin_b,'brand_admin','active'),
     (v_tenant_a,v_existing_admin,'brand_admin','active'),
-    (v_tenant_a,v_inactive_member,'brand_admin','inactive');
+    (v_tenant_a,v_suspended_member,'brand_admin','suspended');
 
   v_result := public.rewardloop_create_tenant_invitation_internal(
     v_admin_a,v_tenant_a,'invitee@example.com','brand_admin',repeat('a',64),now()+interval '3 days'
@@ -129,12 +129,12 @@ BEGIN
   IF v_count <> 1 THEN RAISE EXCEPTION 'expired invitation was not audited/revoked before replacement: %',v_count; END IF;
 
   v_result := public.rewardloop_create_tenant_invitation_internal(
-    v_admin_a,v_tenant_a,'inactive-member@example.com','brand_admin',repeat('3',64),now()+interval '3 days'
+    v_admin_a,v_tenant_a,'suspended-member@example.com','brand_admin',repeat('3',64),now()+interval '3 days'
   );
-  IF v_result->>'ok' <> 'true' THEN RAISE EXCEPTION 'invitation for inactive membership recovery was not created: %',v_result; END IF;
-  v_result := public.rewardloop_accept_tenant_invitation_internal(v_inactive_member,repeat('3',64));
+  IF v_result->>'ok' <> 'true' THEN RAISE EXCEPTION 'invitation for suspended membership recovery was not created: %',v_result; END IF;
+  v_result := public.rewardloop_accept_tenant_invitation_internal(v_suspended_member,repeat('3',64));
   IF v_result->>'ok' <> 'false' OR v_result->>'error' <> 'membership_conflict' THEN
-    RAISE EXCEPTION 'acceptance silently reactivated an inactive membership: %',v_result;
+    RAISE EXCEPTION 'acceptance silently reactivated a suspended membership: %',v_result;
   END IF;
 
   SELECT count(*) INTO v_count FROM public.audit_logs

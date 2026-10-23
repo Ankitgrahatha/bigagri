@@ -44,5 +44,5 @@ test("provider failures never trigger automatic duplicate subscription creation"
   assert.match(endpoint, /finalize_saas_checkout_internal/);
   assert.match(endpoint, /Do not return the checkout URL unless its provider ID is durably bound/i);
   assert.match(endpoint, /notes:[\s\S]*growta_subscription_id/);
-  assert.match(config, /\[functions\.create-razorpay-subscription\]\s*verify_jwt = false/);
+  assert.match(config, /\[functions\.create-razorpay-subscription\]\s*verify_jwt = true/);
 });

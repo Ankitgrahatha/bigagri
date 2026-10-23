@@ -37,7 +37,7 @@ DECLARE
   v_provider_plan_id text;
 BEGIN
   IF p_actor_user_id IS NULL OR p_tenant_id IS NULL OR p_plan_version_id IS NULL
-     OR p_billing_interval NOT IN ('monthly', 'yearly')
+     OR p_billing_interval IS NULL OR p_billing_interval NOT IN ('monthly', 'yearly')
      OR p_idempotency_key IS NULL
      OR p_idempotency_key !~ '^[A-Za-z0-9._:-]{16,128}$' THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_request');

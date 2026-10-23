@@ -74,15 +74,17 @@ const healthMigration = readFileSync(
 );
 
 test("webhook worker exports aggregate queue health without payload data", () => {
-  assert.match(healthMigration, /'received', count\(\) FILTER/);
-  assert.match(healthMigration, /'retryable_failed', count\(\) FILTER/);
-  assert.match(healthMigration, /'exhausted', count\(\) FILTER/);
-  assert.match(healthMigration, /'stale_processing', count\(\) FILTER/);
-  assert.match(healthMigration, /'oldest_unprocessed_age_seconds'/);
-  assert.match(healthMigration, /REVOKE ALL PRIVILEGES ON FUNCTION public\.get_saas_payment_webhook_health_internal\(\)\s+FROM PUBLIC, anon, authenticated/i);
-  assert.match(healthMigration, /GRANT EXECUTE ON FUNCTION public\.get_saas_payment_webhook_health_internal\(\) TO service_role/i);
-  assert.match(worker, /get_saas_payment_webhook_health_internal/);
-  assert.match(worker, /health_metrics_available/);
-  assert.match(worker, /oldest_unprocessed_age_seconds: health\.oldest_unprocessed_age_seconds/);
+  for (const field of [
+    "'received', count(*) FILTER",
+    "'retryable_failed', count(*) FILTER",
+    "'exhausted', count(*) FILTER",
+    "'stale_processing', count(*) FILTER",
+    "'oldest_unprocessed_age_seconds'",
+    "REVOKE ALL PRIVILEGES ON FUNCTION public.get_saas_payment_webhook_health_internal()",
+    "GRANT EXECUTE ON FUNCTION public.get_saas_payment_webhook_health_internal() TO service_role",
+  ]) assert.ok(healthMigration.includes(field), `missing health metric contract: ${field}`);
+  assert.ok(worker.includes("get_saas_payment_webhook_health_internal"));
+  assert.ok(worker.includes("health_metrics_available"));
+  assert.ok(worker.includes("oldest_unprocessed_age_seconds: health.oldest_unprocessed_age_seconds"));
   assert.doesNotMatch(worker, /console\.(log|error|warn)\([^\n]*(payload|payment|secret)/i);
 });

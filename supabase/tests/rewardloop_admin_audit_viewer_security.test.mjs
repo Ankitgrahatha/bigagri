@@ -25,7 +25,7 @@ test("audit API is tenant-filtered, paginated, and excludes sensitive before/aft
 });
 
 test("audit UI is capability-gated for backward compatibility and uses server pagination", () => {
-  assert.match(api, /capabilities: \{ product_management: true, audit_log_viewer: true \}/);
+  assert.match(api, /capabilities: \{ product_management: true, audit_log_viewer: true, fraud_case_management: true \}/);
   assert.match(admin, /if\(data\.capabilities\?\.audit_log_viewer\)/);
   assert.match(admin, /call\("admin_audit_logs",\{tenant_slug:selectedTenantSlug,audit_page:pages\.audit\}\)/);
   assert.match(admin, /Recent audit activity/);

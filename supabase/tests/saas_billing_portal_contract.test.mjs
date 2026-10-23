@@ -25,6 +25,8 @@ test("billing UI reuses idempotency keys for retries and redirects only to provi
   assert.match(ui, /create-razorpay-subscription/);
   assert.match(ui, /Idempotency-Key/);
   assert.match(ui, /sessionStorage\.getItem\(keyName\)/);
+  assert.match(ui, /plan\.monthly_available \? "selected" : "disabled"/);
+  assert.match(ui, /plan\.yearly_available \? \(plan\.monthly_available \? "" : "selected"\) : "disabled"/);
   assert.match(ui, /window\.location\.assign\(result\.data\.checkout_url\)/);
   assert.match(ui, /Do not retry with a new key/i);
   assert.match(ui, /saas-checkout-reconciliation/);

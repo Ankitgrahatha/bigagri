@@ -126,6 +126,10 @@ BEGIN
    WHERE tenant_id=v_tenant_a AND entity_type='reward' AND entity_id=v_reward_id;
   IF v_count <> 4 THEN RAISE EXCEPTION 'create/update/activate/deactivate audit count mismatch: %',v_count; END IF;
 
+  IF to_regclass('public.rewards_tenant_catalogue_order_idx') IS NULL THEN
+    RAISE EXCEPTION 'tenant reward catalogue pagination index is missing';
+  END IF;
+
   IF has_table_privilege('anon','public.rewards','INSERT')
      OR has_table_privilege('anon','public.rewards','UPDATE')
      OR has_table_privilege('anon','public.rewards','DELETE')

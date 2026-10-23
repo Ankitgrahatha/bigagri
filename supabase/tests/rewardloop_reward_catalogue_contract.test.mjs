@@ -13,6 +13,7 @@ test("reward catalogue RPCs validate tenant membership, input bounds and explici
   assert.match(migration, /CREATE OR REPLACE FUNCTION private\.create_rewardloop_reward/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION private\.update_rewardloop_reward/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION private\.set_rewardloop_reward_status/);
+  assert.match(migration, /rewards_tenant_catalogue_order_idx/);
   assert.match(migration, /m\.status='active' AND m\.role IN \('brand_admin','super_admin'\)/);
   assert.match(migration, /tenant_inactive/);
   assert.match(migration, /reward_slug_exists/);

@@ -84,7 +84,7 @@ Current CI evidence on main:
 5. **Vercel production is behind current main.** The production deployment API reports the old `263d598` main commit; a new deployment of current main was rejected by the account's daily deployment limit (HTTP 402). Wait for quota reset or resolve the plan limit through the account owner; do not bypass project billing/security controls.
 6. **No production browser-level end-to-end acceptance run** has proved signup → confirmation → profile → claim → balance → redemption → cancellation/fulfillment against the current deployed stack.
 7. **Tenant self-service provisioning and several admin control-plane workflows remain incomplete.** The app still defaults to `growta-rewardloop`; multi-tenant source safeguards do not equal a complete onboarding/invitation/custom-domain/lifecycle product.
-8. **Additional product work remains:** live SMTP/Auth configuration, test-email delivery, full fraud-case workflow, external reward fulfilment and settlement, backup/restore drill, operational alert delivery, usage metering and billing tax/invoice policies.
+8. **Additional product work remains:** live SMTP/Auth configuration, test-email delivery, advanced fraud analytics, external reward fulfilment and settlement, backup/restore drill, operational alert delivery, usage metering and billing tax/invoice policies.
 
 ## Implemented in repository / database
 

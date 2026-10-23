@@ -1,6 +1,10 @@
 -- Audited reward catalogue management. Rewards are created inactive and activated explicitly.
 -- Existing redemption history is preserved; demo rewards cannot be activated or edited.
 
+-- Match the tenant-scoped catalogue query's stable ordering and pagination.
+CREATE INDEX IF NOT EXISTS rewards_tenant_catalogue_order_idx
+  ON public.rewards (tenant_id, sort_order, name, id);
+
 CREATE OR REPLACE FUNCTION private.create_rewardloop_reward(
   p_actor_user_id uuid,
   p_tenant_id uuid,

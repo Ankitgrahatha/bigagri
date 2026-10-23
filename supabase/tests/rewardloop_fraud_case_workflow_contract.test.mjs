@@ -51,6 +51,7 @@ test("admin UI exposes a manual, audited case lifecycle without asserting automa
 
 test("controlled production release explicitly allowlists the fraud workflow migration", () => {
   assert.match(workflow, /20261023200000/);
+  assert.match(readFileSync(new URL("../../.github/workflows/rewardloop-claim-replay-db.yml", import.meta.url), "utf8"), /rewardloop_fraud_case_workflow_behavior\.test\.sql/);
   assert.match(behavior, /cross-tenant case creation was not rejected/);
   assert.match(behavior, /terminal case was reopened/);
   assert.match(behavior, /case open\/investigate\/resolve audit count mismatch/);

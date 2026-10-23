@@ -7,7 +7,7 @@ const html = readFileSync(new URL("../../admin-settings.html", import.meta.url),
 const api = readFileSync(new URL("../../supabase/functions/rewardloop-admin-settings/index.ts", import.meta.url), "utf8");
 
 test("admin UI clearly says preferences do not change live Supabase Auth SMTP", () => {
-  assert.match(ui, /live Supabase Auth SMTP and Auth settings are not changed/i);
+  assert.match(ui, /saved preferences only; they do not change live Supabase Auth configuration/i);
   assert.match(html, /Live Supabase Auth SMTP is not configured by this form yet/i);
 });
 

@@ -62,3 +62,8 @@ verify_jwt = false
 # and the scheduler only; never include it in client code or webhook payloads.
 [functions.process-razorpay-webhooks]
 verify_jwt = false
+
+# Checkout verifies the bearer token with Supabase Auth inside the function before
+# performing tenant membership checks. Razorpay credentials remain server-side.
+[functions.create-razorpay-subscription]
+verify_jwt = false

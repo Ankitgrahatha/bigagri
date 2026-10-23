@@ -24,7 +24,7 @@ async function boot(){
     $("confirmSubject").value=s.confirmation_subject||$("confirmSubject").value; $("confirmBody").value=s.confirmation_body||$("confirmBody").value;
     $("recoverySubject").value=s.recovery_subject||$("recoverySubject").value; $("recoveryBody").value=s.recovery_body||$("recoveryBody").value;
     $("configSummary").textContent="Preferences loaded. SMTP live-configuration status: "+(s.smtp_configured?"configured":"not connected to Supabase Auth yet")+". Updated: "+(s.updated_at||"not available")+".";
-    status("Admin access verified. These are saved preferences only; live Supabase Auth SMTP and Auth settings are not changed by this page.");
+    status("Admin access verified. Email, authentication, and template values on this page are saved preferences only; they do not change live Supabase Auth configuration.");
   }catch(e){status("Admin console unavailable: "+e.message+". Ensure your account has an active brand_admin or super_admin membership.",true);}
 }
 async function save(action,payload){

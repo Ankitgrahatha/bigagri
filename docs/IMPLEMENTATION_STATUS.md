@@ -1,6 +1,6 @@
 # RewardLoop Implementation Status
 
-Last reviewed: 2026-10-23 (after PRs #101–#103)
+Last reviewed: 2026-10-23 (after PRs #102–#104 and #106)
 Status: **MVP foundation exists; production launch is not yet approved.**
 
 ## Current deployed components
@@ -42,30 +42,32 @@ Current CI evidence on main:
 
 ## Current production state after the 2026-10-23 release-hardening updates
 
-- **Latest canonical Git main at this review:** `6dab7fa066e24f7c8903b47e1cdc2b741fdd05aa`, including PR #101 (billing release boundary/runbook), PR #102 (scheduler safety contract), and PR #103 (disabled unavailable test-email action and refreshed traceability), on top of PRs #93–#100.
-- **Local verification on this exact main:** 155 Node.js contract tests passed, 0 failed; browser JavaScript syntax checks and `git diff --check` passed. This local run does not imply every GitHub-hosted CI job or production deployment succeeded. The constituent PRs also passed quality gate, safe smoke, legacy-route guard, and isolated PostgreSQL regression CI.
+- **Latest canonical Git main at this review:** `a588595c0d0c798934b1188ce0987c803335902b`, including PR #102 (scheduler safety contract), PR #103 (disable unavailable test-email action), PR #104 (clarify Auth preferences), and PR #106 (live leaked-password-protection release check), on top of the earlier billing/release hardening.
+- **Local verification on this exact main:** 157 Node.js contract tests passed, 0 failed; browser JavaScript syntax checks and `git diff --check` passed. PR #106's quality gate, safe smoke, legacy-route guard, and isolated PostgreSQL regression workflows also passed on its reviewed head before merge. This does not prove a production deployment succeeded.
 - **Vercel production alias:** the latest deployment returned by the Vercel API still targets commit `263d5982736101c1c5bf4baf943d0a228f05234f`, not the current main merge. A new production deployment attempt for the current main was rejected with HTTP 402 `api-deployments-free-per-day` (more than 100 deployments per 24 hours). Do not retry until the quota resets or the account owner resolves the plan limit.
 - **Live Supabase migration history:** read-only API reports exactly the original 13 historical versions. The repository now has 41 migration files, including the SaaS billing tables/RPCs and webhook-health migration; these later migrations have not been applied to production.
 - **Live Supabase Edge Functions:** the project currently lists six legacy functions (`claim-qr`, `onboard-farmer`, `issue-qr-batch`, `revoke-qr-batch`, `redeem-reward`, `verify-partner`) plus `rewardloop-api` v10 and `rewardloop-admin-settings` v2. The new Razorpay/SaaS billing functions are not deployed.
-- **Live Auth security:** Supabase's security advisor still reports leaked-password protection disabled. Enable and verify it in the Supabase Auth settings before production launch.
+- **Live Auth security:** Supabase's security advisor still reports leaked-password protection disabled. Enable it in Supabase Auth before release. The controlled release workflow now queries the live Management API field `password_hibp_enabled` and fails closed if it is false, absent, malformed, or cannot be read; its access token must have `auth_config_read` permission.
 - The billing scheduler is committed in Git but intentionally disabled until repository variable `REWARDLOOP_BILLING_MONITOR_ENABLED=true` is set after the processor secret and deployed backend are verified.
 - No production migration, migration-history repair, Edge Function deployment, provider secret change, or real payment was performed during this hardening work.
 
 **Release boundary:** a fresh read-only production catalog comparison on 2026-10-23 matched the checked-in baseline fingerprints for columns, constraints, enums, indexes, policies, RLS flags, and triggers; all 16 captured function body/security hashes and all 15 per-table ACL fingerprints also matched. This materially strengthens the parity evidence but is not a backup, does not reconcile migration history, and does not apply any DDL. The production migration-history repair remains unperformed pending backup/recovery confirmation and explicit operator approval. Auth security configuration, server-side test credentials, reviewed migration dry-run, and test-mode end-to-end evidence remain outstanding.
 
-## Latest repository changes after PRs #101–#103
+## Latest repository changes after PRs #102–#104 and #106
 
 - PR #101 clarifies the production runbook: eight billing/RewardLoop Edge Functions are expected in the controlled release; read-only smoke checks do not prove the billing lifecycle; Vercel frontend deployment must be verified independently.
 - PR #102 adds contract assertions for the opt-in billing scheduler, five-minute cadence, bounded batch/runtime, required aggregate health fields, alert thresholds, and secret/payload non-disclosure.
-- PR #103 disables the admin test-email action until a real privileged email integration exists, removes the placeholder click handler, adds a regression test, and updates the PRD traceability matrix.
-- The full local Node contract suite on latest main passed **155/155**. JavaScript syntax checks and `git diff --check` passed.
-- The Vercel status check on PR #103 still failed with the account's daily deployment quota (HTTP 402, `api-deployments-free-per-day`). The frontend has not been proven deployed from latest main.
+- PR #103 disables the admin test-email action until a real privileged email integration exists and removes the placeholder click handler.
+- PR #104 clarifies that the authentication panel stores preferences only; it does not change live Supabase Auth settings.
+- PR #106 replaces the operator-only leaked-password-protection checkbox with a fail-closed Management API check, keeping the full Auth response out of logs.
+- The full local Node contract suite on latest main passed **157/157**. PR #106's four required GitHub Actions workflows passed before merge; JavaScript syntax checks and `git diff --check` passed locally.
+- Vercel's status check still fails due the account's daily deployment quota (HTTP 402, `api-deployments-free-per-day`). The frontend has not been proven deployed from latest main.
 
 ## Latest release-gate evidence
 
 - The baseline-parity test and isolated PostgreSQL workflow validate the schema-only baseline, the 13 historical no-op markers, catalog fingerprints, function bodies/security configuration, per-table grants, default privileges, transactional behavior, tenant isolation, and concurrency in disposable CI.
 - The live Supabase project still reports exactly those 13 historical migration versions. CI parity is not proof that pending migrations were applied to production.
-- Latest main contract suite on `6dab7fa066e24f7c8903b47e1cdc2b741fdd05aa`: 155 passed, 0 failed; browser JavaScript syntax and diff checks passed. Merged PR CI also passed quality gate, safe smoke, legacy-route guard and isolated PostgreSQL regression.
+- Latest main contract suite on `a588595c0d0c798934b1188ce0987c803335902b`: 157 passed, 0 failed; browser JavaScript syntax and diff checks passed. PR #106's quality gate, safe smoke, legacy-route guard and isolated PostgreSQL regression passed on its reviewed head.
 - The live Supabase advisor reports leaked-password protection disabled and one informational RLS-without-policy finding for `public.rewardloop_admin_settings`. The latter is safe only while direct client grants remain revoked and access stays behind the authenticated, tenant-authorized Edge Function. It is not a reason to create permissive client policies.
 - The performance advisor reports 25 unused indexes. Do not drop them based solely on this signal; reassess after representative traffic and load testing.
 - The production Vercel alias is not verified against the latest main commit. The latest deployment attempt for current main returned HTTP 402 due the account's 100-deployments-per-24-hours limit. No workaround or plan change was made.

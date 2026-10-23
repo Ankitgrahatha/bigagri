@@ -80,7 +80,7 @@ test("pre-baseline fingerprint check is skipped after baseline migration is alre
  const gate=workflow.slice(workflow.indexOf("Verify live schema fingerprints before migration-history repair"),workflow.indexOf("Reconcile only the verified baseline and validate migration allowlist"));
  assert.match(gate,/supabase migration list --linked/);
  assert.match(gate,/20261021083000/);
- assert.match(gate,/Baseline already recorded/);
+ assert.match(gate,/baseline is already recorded/);
  assert.match(gate,/baseline_state/);
  assert.match(gate,/skip the initial-state fingerprint check/);
 });

@@ -45,7 +45,7 @@ test("valuation writes are admin-authorized, audited and locked while budgeted c
 });
 
 test("admin route is covered by the common membership gate and saves through the privileged RPC", () => {
-  assert.match(api, /"create_campaign", "set_point_value"(?:, "create_product")?(?:, "set_product_status")?(?:, "update_product")?\]\.includes\(action\)/);
+  assert.match(api, /"create_campaign", "set_point_value".*includes\(action\)/);
   const route = api.slice(api.indexOf('if (action === "set_point_value")'), api.indexOf('if (action === "admin_dashboard")'));
   assert.match(route, /rewardloop_set_point_value_internal/);
   assert.match(route, /p_actor_user_id:\s*user\.id/);

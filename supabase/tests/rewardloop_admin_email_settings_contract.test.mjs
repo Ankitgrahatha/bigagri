@@ -20,3 +20,10 @@ test("SMTP password is never persisted to the settings table", () => {
 test("SMTP password field is cleared after successful or failed submission", () => {
   assert.equal((ui.match(/\$\("password"\)\.value="";/g) || []).length, 2);
 });
+
+test("test-email placeholder is visibly unavailable and cannot be triggered", () => {
+  assert.match(html, /id="testEmail"[^>]*disabled[^>]*aria-disabled="true"/);
+  assert.match(html, /Test email unavailable/);
+  assert.match(html, /This page cannot send a test message/);
+  assert.doesNotMatch(ui, /\$\("testEmail"\)\.addEventListener/);
+});

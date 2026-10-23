@@ -10,6 +10,10 @@ DECLARE
   v_result jsonb;
   v_subscription_id uuid;
   v_count integer;
+  v_event_id uuid;
+  v_event_epoch bigint := extract(epoch FROM clock_timestamp())::bigint;
+  v_period_start bigint := extract(epoch FROM (clock_timestamp() - interval '1 minute'))::bigint;
+  v_period_end bigint := extract(epoch FROM (clock_timestamp() + interval '1 day'))::bigint;
 BEGIN
   INSERT INTO auth.users (id, email)
   VALUES (v_user_id, 'checkout-regression@example.invalid');
@@ -58,6 +62,48 @@ BEGIN
   );
   IF v_result->>'ok' <> 'true' THEN
     RAISE EXCEPTION 'checkout finalization failed: %', v_result;
+  END IF;
+
+  INSERT INTO private.saas_payment_webhook_events (
+    provider_event_id, event_type, payload, signature_verified_at
+  ) VALUES (
+    'evt_checkout_charge',
+    'subscription.charged',
+    jsonb_build_object(
+      'event', 'subscription.charged',
+      'created_at', v_event_epoch,
+      'payload', jsonb_build_object(
+        'subscription', jsonb_build_object('entity', jsonb_build_object(
+          'id', 'sub_checkout_regression',
+          'plan_id', 'plan_checkout_monthly',
+          'current_start', v_period_start,
+          'current_end', v_period_end
+        )),
+        'payment', jsonb_build_object('entity', jsonb_build_object(
+          'id', 'pay_checkout_regression',
+          'subscription_id', 'sub_checkout_regression',
+          'status', 'captured',
+          'amount', 10000,
+          'currency', 'INR'
+        ))
+      )
+    ),
+    now()
+  ) RETURNING id INTO v_event_id;
+
+  v_result := public.process_saas_payment_webhook_event_internal(v_event_id);
+  IF v_result->>'ok' <> 'true' OR v_result->>'result' <> 'applied' THEN
+    RAISE EXCEPTION 'checkout payment webhook did not activate subscription: %', v_result;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM private.saas_payment_attempts
+    WHERE tenant_id = v_tenant_id AND subscription_id = v_subscription_id
+      AND idempotency_key = 'checkout-idem-key-0001'
+      AND provider_payment_id = 'pay_checkout_regression'
+      AND status = 'captured' AND captured_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'captured webhook was not reconciled into the reserved checkout attempt';
   END IF;
 
   v_result := public.reserve_saas_checkout_internal(

@@ -87,7 +87,10 @@ async function checkRedisRateLimit(
     return { allowed: true, configured: false };
   }
 
-  const key = `rewardloop:v1:${TENANT_SLUG}:${action}:${actorId}`;
+  // Resolve rate limits before tenant membership/context to reject abusive requests early.
+  // Scope by verified actor + action globally: never let an untrusted tenant_slug
+  // supplied in the request create fresh buckets and bypass throttling.
+  const key = `rewardloop:v1:actor:${actorId}:${action}`;
   const script = [
     "local n = redis.call('INCR', KEYS[1])",
     "if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end",

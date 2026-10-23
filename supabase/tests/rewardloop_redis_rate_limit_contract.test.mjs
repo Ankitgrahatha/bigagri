@@ -15,10 +15,11 @@ test("Upstash rate limiting is optional until server-side secrets are configured
   assert.match(source, /endpoint\.hostname\.endsWith\("\.upstash\.io"\)/);
 });
 
-test("rate limiting is atomic and tenant/action/actor scoped", () => {
+test("rate limiting is atomic and scoped to verified actor and action before tenant resolution", () => {
   assert.match(source, /redis\.call\('INCR', KEYS\[1\]\)/);
   assert.match(source, /redis\.call\('EXPIRE', KEYS\[1\], ARGV\[1\]\)/);
-  assert.match(source, /rewardloop:v1:\$\{TENANT_SLUG\}:\$\{action\}:\$\{actorId\}/);
+  assert.match(source, /rewardloop:v1:actor:\$\{actorId\}:\$\{action\}/);
+  assert.match(source, /never let an untrusted tenant_slug[\s\S]*create fresh buckets and bypass throttling/);
   assert.match(source, /status: 429/);
   assert.match(source, /"Retry-After"/);
 });

@@ -14,6 +14,7 @@ DECLARE
   v_period_start bigint := extract(epoch FROM (clock_timestamp() - interval '1 minute'))::bigint;
   v_period_end bigint := extract(epoch FROM (clock_timestamp() + interval '1 day'))::bigint;
   v_result jsonb;
+  v_health jsonb;
   v_status text;
   v_active boolean;
 BEGIN
@@ -141,6 +142,13 @@ BEGIN
   END IF;
   IF EXISTS (SELECT 1 FROM private.saas_payment_attempts WHERE provider_payment_id = 'pay_billing_wrong_amount') THEN
     RAISE EXCEPTION 'mismatched amount created a payment attempt';
+  END IF;
+
+  v_health := public.get_saas_payment_webhook_health_internal();
+  IF v_health->>'ok' <> 'true'
+     OR (v_health->>'retryable_failed')::integer < 1
+     OR (v_health->>'oldest_unprocessed_age_seconds')::bigint < 0 THEN
+    RAISE EXCEPTION 'webhook health metrics did not report retryable failed event and age: %', v_health;
   END IF;
 
   INSERT INTO private.saas_payment_webhook_events (

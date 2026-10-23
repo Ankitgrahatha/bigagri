@@ -81,6 +81,12 @@ BEGIN
     RAISE EXCEPTION 'checkout RPC grants are not service-role-only';
   END IF;
 
+  IF has_function_privilege('anon', 'public.get_saas_payment_webhook_health_internal()', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.get_saas_payment_webhook_health_internal()', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.get_saas_payment_webhook_health_internal()', 'EXECUTE') THEN
+    RAISE EXCEPTION 'webhook health metrics RPC must be service-role-only';
+  END IF;
+
   RAISE NOTICE 'PASS: SaaS billing and checkout tables/RPCs are private/service-role-only';
 END
 $saas_billing_security$;

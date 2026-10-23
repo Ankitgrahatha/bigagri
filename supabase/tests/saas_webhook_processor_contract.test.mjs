@@ -67,3 +67,24 @@ test("inbox only marks processed events with an explicit outcome", () => {
   assert.match(inbox, /status = 'processed' AND processed_at IS NOT NULL AND processing_result IS NOT NULL/i);
   assert.match(inbox, /status <> 'processed' AND processed_at IS NULL AND processing_result IS NULL/i);
 });
+
+const healthMigration = readFileSync(
+  new URL("../migrations/20261023190000_saas_payment_webhook_health.sql", import.meta.url),
+  "utf8",
+);
+
+test("webhook worker exports aggregate queue health without payload data", () => {
+  for (const field of [
+    "'received', count(*) FILTER",
+    "'retryable_failed', count(*) FILTER",
+    "'exhausted', count(*) FILTER",
+    "'stale_processing', count(*) FILTER",
+    "'oldest_unprocessed_age_seconds'",
+    "REVOKE ALL PRIVILEGES ON FUNCTION public.get_saas_payment_webhook_health_internal()",
+    "GRANT EXECUTE ON FUNCTION public.get_saas_payment_webhook_health_internal() TO service_role",
+  ]) assert.ok(healthMigration.includes(field), `missing health metric contract: ${field}`);
+  assert.ok(worker.includes("get_saas_payment_webhook_health_internal"));
+  assert.ok(worker.includes("health_metrics_available"));
+  assert.ok(worker.includes("oldest_unprocessed_age_seconds: health.oldest_unprocessed_age_seconds"));
+  assert.doesNotMatch(worker, /console\.(log|error|warn)\([^\n]*(payload|payment|secret)/i);
+});

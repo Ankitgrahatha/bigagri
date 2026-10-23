@@ -19,7 +19,7 @@ BEGIN
   v_result := public.get_saas_billing_portal_internal(v_user, v_tenant);
   IF v_result->>'ok' <> 'true' OR jsonb_array_length(v_result->'plans') <> 1
      OR v_result->'plans'->0->>'plan_version_id' <> v_version::text
-     OR v_result->'subscription' IS NOT NULL THEN
+     OR v_result->'subscription' <> 'null'::jsonb THEN
     RAISE EXCEPTION 'published billing catalog response is incorrect: %', v_result;
   END IF;
 

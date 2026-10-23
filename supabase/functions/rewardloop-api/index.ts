@@ -181,6 +181,9 @@ Deno.serve(async (req: Request) => {
       create_product: { limit: 20, windowSeconds: 60 },
       update_product: { limit: 30, windowSeconds: 60 },
       set_product_status: { limit: 20, windowSeconds: 60 },
+      admin_fraud_cases: { limit: 30, windowSeconds: 60 },
+      create_fraud_case: { limit: 10, windowSeconds: 60 },
+      update_fraud_case: { limit: 20, windowSeconds: 60 },
     };
     const policy = ratePolicy[action];
     if (policy) {
@@ -317,7 +320,7 @@ Deno.serve(async (req: Request) => {
       return reply(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
-    if (["admin_dashboard", "admin_audit_logs", "admin_record_export", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status", "update_product"].includes(action)) {
+    if (["admin_dashboard", "admin_audit_logs", "admin_record_export", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status", "update_product", "admin_fraud_cases", "create_fraud_case", "update_fraud_case"].includes(action)) {
       // Keep legacy callers working on the original tenant, but allow an explicit
       // tenant context only after checking active membership below.
       const requestedTenantSlug = typeof body.tenant_slug === "string" ? body.tenant_slug.trim() : TENANT_SLUG;
@@ -330,6 +333,24 @@ Deno.serve(async (req: Request) => {
         .eq("tenant_id", tenant.id).eq("user_id", user.id).eq("status", "active").in("role", ["brand_admin", "super_admin"]).maybeSingle();
       if (membershipError) return reply(500, { ok: false, error: "admin_authorization_check_failed" });
       if (!membership) return reply(403, { ok: false, error: "admin_access_required" });
+
+      if (action === "admin_fraud_cases") {
+        const rawPage = Number(body.fraud_cases_page ?? 0);
+        const statusFilter = typeof body.fraud_case_status === "string" ? body.fraud_case_status : "all";
+        if (!Number.isSafeInteger(rawPage) || rawPage < 0 || rawPage > 10000 ||
+            !["all","open","investigating","confirmed_fraud","resolved_legitimate","dismissed"].includes(statusFilter)) {
+          return reply(400, { ok: false, error: "invalid_fraud_case_filter" });
+        }
+        let query = admin.from("fraud_cases")
+          .select("id,title,reason_code,severity,status,summary,partner_id,claim_id,scan_event_id,assigned_to,opened_by,resolution_code,resolution_notes,created_at,updated_at,resolved_at", { count: "exact" })
+          .eq("tenant_id", tenant.id);
+        if (statusFilter !== "all") query = query.eq("status", statusFilter);
+        const { data: cases, error: casesError, count } = await query
+          .order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(rawPage * 20, (rawPage + 1) * 20 - 1);
+        if (casesError) return reply(500, { ok: false, error: "admin_fraud_cases_load_failed" });
+        return reply(200, { ok: true, cases: cases || [], pagination: { page: rawPage, page_size: 20, total: count || 0 } });
+      }
 
       if (action === "admin_audit_logs") {
         const rawPage = Number(body.audit_page ?? 0);
@@ -377,6 +398,52 @@ Deno.serve(async (req: Request) => {
         });
         if (auditInsertError) return reply(500, { ok: false, error: "admin_export_audit_failed" });
         return reply(200, { ok: true, request_id: requestId });
+      }
+
+      if (action === "create_fraud_case") {
+        const title = typeof body.title === "string" ? body.title.trim() : "";
+        const reasonCode = typeof body.reason_code === "string" ? body.reason_code.trim().toLowerCase() : "";
+        const severity = typeof body.severity === "string" ? body.severity.trim().toLowerCase() : "medium";
+        const summary = typeof body.summary === "string" ? body.summary.trim() : "";
+        const optionalUuid = (value: unknown) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
+        if (title.length < 3 || title.length > 160 || !/^[a-z][a-z0-9_]{2,63}$/.test(reasonCode) ||
+            !["low","medium","high","critical"].includes(severity) || summary.length > 2000 ||
+            (body.partner_id != null && !optionalUuid(body.partner_id)) ||
+            (body.claim_id != null && !optionalUuid(body.claim_id)) ||
+            (body.scan_event_id != null && !optionalUuid(body.scan_event_id))) {
+          return reply(400, { ok: false, error: "invalid_fraud_case_details" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_create_fraud_case_internal", {
+          p_actor_user_id: user.id, p_tenant_id: tenant.id, p_title: title, p_reason_code: reasonCode,
+          p_severity: severity, p_summary: summary || null,
+          p_partner_id: optionalUuid(body.partner_id), p_claim_id: optionalUuid(body.claim_id),
+          p_scan_event_id: optionalUuid(body.scan_event_id),
+        });
+        if (error) return reply(500, { ok: false, error: "fraud_case_create_failed" });
+        if (!data || data.ok !== true) return reply(data?.error === "forbidden" ? 403 : 400, data || { ok: false, error: "fraud_case_create_failed" });
+        return reply(201, data);
+      }
+
+      if (action === "update_fraud_case") {
+        const caseId = typeof body.case_id === "string" ? body.case_id : "";
+        const status = typeof body.status === "string" ? body.status.trim().toLowerCase() : "";
+        const assignedTo = body.assigned_to == null || body.assigned_to === "" ? null : body.assigned_to;
+        const resolutionCode = typeof body.resolution_code === "string" ? body.resolution_code.trim().toLowerCase() : "";
+        const resolutionNotes = typeof body.resolution_notes === "string" ? body.resolution_notes.trim() : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(caseId) ||
+            !["open","investigating","confirmed_fraud","resolved_legitimate","dismissed"].includes(status) ||
+            (assignedTo !== null && (typeof assignedTo !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(assignedTo))) ||
+            resolutionCode.length > 64 || resolutionNotes.length > 2000) {
+          return reply(400, { ok: false, error: "invalid_fraud_case_update" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_update_fraud_case_internal", {
+          p_actor_user_id: user.id, p_tenant_id: tenant.id, p_case_id: caseId, p_new_status: status,
+          p_assigned_to: assignedTo, p_resolution_code: resolutionCode || null,
+          p_resolution_notes: resolutionNotes || null,
+        });
+        if (error) return reply(500, { ok: false, error: "fraud_case_update_failed" });
+        if (!data || data.ok !== true) return reply(data?.error === "forbidden" ? 403 : 400, data || { ok: false, error: "fraud_case_update_failed" });
+        return reply(200, data);
       }
 
       if (action === "set_point_value") {
@@ -588,7 +655,7 @@ Deno.serve(async (req: Request) => {
           ok: true,
           tenant,
           role: membership.role,
-          capabilities: { product_management: true, audit_log_viewer: true },
+          capabilities: { product_management: true, audit_log_viewer: true, fraud_case_management: true },
           metrics: metricsResult.data,
           pagination,
           partners: partners.data || [],

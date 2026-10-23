@@ -27,7 +27,8 @@ The following changes are merged in Git and covered by successful GitHub Actions
 - Redemption resolution explicitly rejects a NULL status at the database boundary; isolated SQL regression test passes.
 - Invalid QR token guesses are now rate-limited to 10 attempts per actor in a rolling 15-minute window. The private attempt table stores actor/request/time metadata only, never the submitted token. The migration is based on the latest budget-aware claim function so it preserves campaign liability enforcement.
 - Frontend release checks validate JavaScript entry points, service-worker syntax, HTML-referenced local assets, PWA manifest JSON, and icon existence.
-- Admin email settings now clearly state that they save preferences only; SMTP passwords are cleared after submission and are not persisted to the application settings table.
+- Admin email settings now clearly state that they save preferences only; SMTP passwords are cleared after submission and are not persisted to the application settings table. The test-email control is disabled until a real provider integration exists.
+- Manual risk/fraud case workflow is now implemented in source: tenant-scoped case records, admin-only create/list/update APIs, tenant-bound optional partner/claim/scan links, audited investigation/resolution, and terminal case states. Isolated SQL acceptance is pending this PR’s GitHub Actions run; it is not deployed to production.
 - The deployed admin settings function is now tracked in Git with tests for caller authentication, tenant admin authorization, field allowlisting and SMTP password non-persistence.
 - Six legacy Edge Function sources are archived outside the canonical deployment folder; none has been disabled.
 
@@ -43,9 +44,9 @@ Current CI evidence on main:
 ## Current production state after the 2026-10-23 release-hardening updates
 
 - **Latest canonical Git main at this review:** `a588595c0d0c798934b1188ce0987c803335902b`, including PR #102 (scheduler safety contract), PR #103 (disable unavailable test-email action), PR #104 (clarify Auth preferences), and PR #106 (live leaked-password-protection release check), on top of the earlier billing/release hardening.
-- **Local verification on this exact main:** 157 Node.js contract tests passed, 0 failed; browser JavaScript syntax checks and `git diff --check` passed. PR #106's quality gate, safe smoke, legacy-route guard, and isolated PostgreSQL regression workflows also passed on its reviewed head before merge. This does not prove a production deployment succeeded.
+- **Latest local verification for this feature branch:** 173 Node.js contract tests passed, 0 failed; browser JavaScript syntax checks and `git diff --check` passed. The isolated PostgreSQL workflow includes fraud-case behavioral tests but has not yet run on this branch. This does not prove a production deployment succeeded.
 - **Vercel production alias:** the latest deployment returned by the Vercel API still targets commit `263d5982736101c1c5bf4baf943d0a228f05234f`, not the current main merge. A new production deployment attempt for the current main was rejected with HTTP 402 `api-deployments-free-per-day` (more than 100 deployments per 24 hours). Do not retry until the quota resets or the account owner resolves the plan limit.
-- **Live Supabase migration history:** read-only API reports exactly the original 13 historical versions. The repository now has 41 migration files, including the SaaS billing tables/RPCs and webhook-health migration; these later migrations have not been applied to production.
+- **Live Supabase migration history:** read-only API reports exactly the original 13 historical versions. The repository now has 42 migration files, including the SaaS billing tables/RPCs and webhook-health migration; these later migrations have not been applied to production.
 - **Live Supabase Edge Functions:** the project currently lists six legacy functions (`claim-qr`, `onboard-farmer`, `issue-qr-batch`, `revoke-qr-batch`, `redeem-reward`, `verify-partner`) plus `rewardloop-api` v10 and `rewardloop-admin-settings` v2. The new Razorpay/SaaS billing functions are not deployed.
 - **Live Auth security:** Supabase's security advisor still reports leaked-password protection disabled. Enable it in Supabase Auth before release. The controlled release workflow now queries the live Management API field `password_hibp_enabled` and fails closed if it is false, absent, malformed, or cannot be read; its access token must have `auth_config_read` permission.
 - The billing scheduler is committed in Git but intentionally disabled until repository variable `REWARDLOOP_BILLING_MONITOR_ENABLED=true` is set after the processor secret and deployed backend are verified.
@@ -67,7 +68,7 @@ Current CI evidence on main:
 
 - The baseline-parity test and isolated PostgreSQL workflow validate the schema-only baseline, the 13 historical no-op markers, catalog fingerprints, function bodies/security configuration, per-table grants, default privileges, transactional behavior, tenant isolation, and concurrency in disposable CI.
 - The live Supabase project still reports exactly those 13 historical migration versions. CI parity is not proof that pending migrations were applied to production.
-- Latest main contract suite on `a588595c0d0c798934b1188ce0987c803335902b`: 157 passed, 0 failed; browser JavaScript syntax and diff checks passed. PR #106's quality gate, safe smoke, legacy-route guard and isolated PostgreSQL regression passed on its reviewed head.
+- Latest feature-branch contract suite: 173 passed, 0 failed; browser JavaScript syntax and diff checks passed. Isolated PostgreSQL behavioral tests remain pending the PR CI run.
 - The live Supabase advisor reports leaked-password protection disabled and one informational RLS-without-policy finding for `public.rewardloop_admin_settings`. The latter is safe only while direct client grants remain revoked and access stays behind the authenticated, tenant-authorized Edge Function. It is not a reason to create permissive client policies.
 - The performance advisor reports 25 unused indexes. Do not drop them based solely on this signal; reassess after representative traffic and load testing.
 - The production Vercel alias is not verified against the latest main commit. The latest deployment attempt for current main returned HTTP 402 due the account's 100-deployments-per-24-hours limit. No workaround or plan change was made.
@@ -76,7 +77,7 @@ Current CI evidence on main:
 
 ## Production blockers still open
 
-1. **Production migration history is unreconciled.** Live reports 13 historical versions while repository main contains 41 migration files. A fresh read-only fingerprint comparison now matches the checked-in baseline for the captured catalog categories, 16 function bodies/security settings, and 15 table ACLs. Do not run baseline DDL or repair history until backup/recovery readiness, migration-list review, explicit operator approval and the exact linked dry-run are recorded.
+1. **Production migration history is unreconciled.** Live reports 13 historical versions while repository main contains 42 migration files. A fresh read-only fingerprint comparison now matches the checked-in baseline for the captured catalog categories, 16 function bodies/security settings, and 15 table ACLs. Do not run baseline DDL or repair history until backup/recovery readiness, migration-list review, explicit operator approval and the exact linked dry-run are recorded.
 2. **SaaS billing schema and functions are not deployed.** Billing is implemented and CI-tested in source, but the production project has no billing migrations/functions yet. Required server-side test credentials, provider plan IDs and test-mode checkout/webhook/reconciliation evidence remain outstanding.
 3. **Auth leaked-password protection is disabled.** Enable it in Supabase Auth security settings and verify it with a controlled test before launch. Production email confirmation, SMTP delivery and privileged MFA policy are also not fully verified.
 4. **Six legacy Edge Functions remain active** with `verify_jwt=false` and manual authentication/CORS handling. Do not retire or replace them until source/client references and a longer privacy-safe traffic window have been reviewed and parity/rollback are documented.
@@ -130,9 +131,9 @@ PRs #91–#95 added the Razorpay SaaS billing foundation in source: versioned pl
 ## Other blockers and unverified areas
 
 - Production Auth email delivery and account confirmation are not verified; leaked-password protection remains disabled.
-- The settings console saves preferences only; it does not apply SMTP, Auth URL, signup policy or email templates to live Supabase Auth. The test-email control is now visibly disabled and states that test delivery is unavailable; no test message is sent.
+- The settings console saves preferences only; it does not apply SMTP, Auth URL, signup policy or email templates to live Supabase Auth. The test-email control is visibly disabled; no test message is sent. The manual risk/fraud case workflow is implemented in source but its migration and API are not deployed to production.
 - Current client/server configuration defaults to the `growta-rewardloop` tenant slug; customer self-service multi-tenant onboarding is not implemented.
-- Reward provider integration, formal fraud case handling, backup/restore drill and live alert delivery remain unverified or incomplete.
+- Reward provider integration, backup/restore drill and live alert delivery remain unverified or incomplete. Manual fraud case handling is implemented in source and tests, but its migration/API are not deployed to production.
 - Sentry is not confirmed integrated in the inspected source. Redis infrastructure exists, but application integration and safe usage are not fully confirmed. A tenant-aware CMS/control plane is not complete.
 - An account's super_admin membership does not prove that successful admin login and every end-to-end privileged operation have been tested.
 

@@ -51,7 +51,7 @@ Current CI evidence on main:
 - The billing scheduler is committed in Git but intentionally disabled until repository variable `REWARDLOOP_BILLING_MONITOR_ENABLED=true` is set after the processor secret and deployed backend are verified.
 - No production migration, migration-history repair, Edge Function deployment, provider secret change, or real payment was performed during this hardening work.
 
-**Release boundary:** source and isolated CI are substantially more complete, but production is not current and is not approved for live SaaS billing. Do not run baseline DDL or bypass the protected release workflow. The remaining live steps require a schema-parity review, backup/recovery confirmation, Auth security configuration, server-side test credentials, a successful reviewed migration dry-run, and test-mode end-to-end evidence.
+**Release boundary:** a fresh read-only production catalog comparison on 2026-10-23 matched the checked-in baseline fingerprints for columns, constraints, enums, indexes, policies, RLS flags, and triggers; all 16 captured function body/security hashes and all 15 per-table ACL fingerprints also matched. This materially strengthens the parity evidence but is not a backup, does not reconcile migration history, and does not apply any DDL. The production migration-history repair remains unperformed pending backup/recovery confirmation and explicit operator approval. Auth security configuration, server-side test credentials, reviewed migration dry-run, and test-mode end-to-end evidence remain outstanding.
 
 ## Latest release-gate evidence
 
@@ -66,7 +66,7 @@ Current CI evidence on main:
 
 ## Production blockers still open
 
-1. **Production database migration history is unreconciled.** Live reports 13 historical versions while repository main contains 41 migration files. Do not run baseline DDL or apply pending migrations until a fresh schema-parity comparison, backup/recovery review, migration-list review and exact linked dry-run are approved.
+1. **Production migration history is unreconciled.** Live reports 13 historical versions while repository main contains 41 migration files. A fresh read-only fingerprint comparison now matches the checked-in baseline for the captured catalog categories, 16 function bodies/security settings, and 15 table ACLs. Do not run baseline DDL or repair history until backup/recovery readiness, migration-list review, explicit operator approval and the exact linked dry-run are recorded.
 2. **SaaS billing schema and functions are not deployed.** Billing is implemented and CI-tested in source, but the production project has no billing migrations/functions yet. Required server-side test credentials, provider plan IDs and test-mode checkout/webhook/reconciliation evidence remain outstanding.
 3. **Auth leaked-password protection is disabled.** Enable it in Supabase Auth security settings and verify it with a controlled test before launch. Production email confirmation, SMTP delivery and privileged MFA policy are also not fully verified.
 4. **Six legacy Edge Functions remain active** with `verify_jwt=false` and manual authentication/CORS handling. Do not retire or replace them until source/client references and a longer privacy-safe traffic window have been reviewed and parity/rollback are documented.

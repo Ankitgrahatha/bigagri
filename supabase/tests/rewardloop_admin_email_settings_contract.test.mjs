@@ -7,7 +7,7 @@ const html = readFileSync(new URL("../../admin-settings.html", import.meta.url),
 const api = readFileSync(new URL("../../supabase/functions/rewardloop-admin-settings/index.ts", import.meta.url), "utf8");
 
 test("admin UI clearly says preferences do not change live Supabase Auth SMTP", () => {
-  assert.match(ui, /live Supabase Auth SMTP and Auth settings are not changed/i);
+  assert.match(ui, /saved preferences only; they do not change live Supabase Auth configuration/i);
   assert.match(html, /Live Supabase Auth SMTP is not configured by this form yet/i);
 });
 
@@ -26,4 +26,11 @@ test("test-email placeholder is visibly unavailable and cannot be triggered", ()
   assert.match(html, /Test email unavailable/);
   assert.match(html, /This page cannot send a test message/);
   assert.doesNotMatch(ui, /\$\("testEmail"\)\.addEventListener/);
+});
+
+test("authentication controls clearly disclose that values are preferences only", () => {
+  assert.match(html, /Authentication preferences/);
+  assert.match(html, /do not change Supabase Auth site URL, redirect allowlist, signup policy, or email-confirmation enforcement/i);
+  assert.match(html, /Save authentication preferences/);
+  assert.match(ui, /they do not change live Supabase Auth configuration/i);
 });

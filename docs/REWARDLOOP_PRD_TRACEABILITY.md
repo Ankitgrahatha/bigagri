@@ -52,7 +52,9 @@ Evidence links: [PR #24 migration rebuild](https://github.com/Ankitgrahatha/biga
 - SaaS billing source includes versioned plan pricing, tenant subscription and payment-attempt tables, fail-closed entitlements, idempotent checkout, provider-verified checkout recovery, signed webhook receipt/deduplication, bounded processing, health metrics, and a read-only reconciliation queue. This is not live billing readiness: the corresponding production migrations and functions remain absent.
 - Production release runbook now distinguishes shallow HTTP smoke tests from test-mode billing lifecycle proof and keeps the scheduler disabled until test-mode evidence exists.
 - The scheduler safety contract now checks the opt-in flag, five-minute cadence, bounded batch size/runtime, health metric validation, alert thresholds, and secret/payload non-disclosure.
-- Latest local main test suite on `6dab7fa066e24f7c8903b47e1cdc2b741fdd05aa`: 155 passed, 0 failed after PRs #102–#103. Browser JavaScript syntax checks and `git diff --check` passed.
+- Latest local main test suite on `a588595c0d0c798934b1188ce0987c803335902b`: 157 passed, 0 failed after PRs #102–#104 and #106. PR #106's quality gate, safe smoke, legacy-route guard, and isolated PostgreSQL regression workflows passed before merge. Browser JavaScript syntax checks and `git diff --check` passed.
+- The production release workflow now verifies `password_hibp_enabled=true` through the Supabase Management API before linking/mutating production; it fails closed on disabled/unknown state or missing `auth_config_read` permission and does not print the Auth config response.
+- Admin settings now explicitly labels Auth controls as preferences only, and the test-email button is disabled until a real privileged provider integration exists.
 - Vercel deployment is still blocked by the reported daily deployment quota; the latest PR status remains a Vercel quota failure, not a passing deployment.
 
 ## Requirement-to-implementation matrix

@@ -58,7 +58,6 @@ test("Edge Function deployment follows successful migrations and uses read-only 
  assert.match(runbook,/does not create products, issue QR codes, claim points, redeem rewards/);
 });
 
-
 test("live schema parity probe is read-only and matches the captured catalog fingerprint contract",()=>{
  assert.match(liveParitySql,/557cf04098d8519f16d8cc1a9d145088734cb6ef9cefce7bf3dcc467098719a2/);
  assert.match(liveParitySql,/33c1dc63ba89a52e68e4d54ea54e2ee971269dfcd3821b339fcdbc499e09ebf2/);
@@ -68,13 +67,11 @@ test("live schema parity probe is read-only and matches the captured catalog fin
  assert.doesNotMatch(liveParitySql,/\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|GRANT|REVOKE)\b/i);
 });
 
-
 test("live schema parity probe checks captured default ACL fingerprint",()=>{
  assert.match(liveParitySql,/default_acl_match/);
  assert.match(liveParitySql,/642e160f2667b54bde03a979af4eb14bb818281cb3f628f4910ab24426bb1792/);
  assert.match(liveParitySql,/baseline_matches AND default_acl_match|default_acl_match AND function_acl_match/);
 });
-
 
 test("pre-baseline fingerprint check is skipped after baseline migration is already recorded",()=>{
  const gate=workflow.slice(workflow.indexOf("Verify live schema fingerprints before migration-history repair"),workflow.indexOf("Reconcile only the verified baseline and validate migration allowlist"));
@@ -83,4 +80,14 @@ test("pre-baseline fingerprint check is skipped after baseline migration is alre
  assert.match(gate,/baseline is already recorded/);
  assert.match(gate,/baseline_state/);
  assert.match(gate,/skip the initial-state fingerprint check/);
+});
+
+test("release runbook distinguishes deployment smoke checks from billing lifecycle proof",()=>{
+ assert.match(runbook,/does not deploy the Vercel frontend/);
+ assert.match(runbook,/do \*\*not\*\* prove checkout, payment capture, subscription activation/);
+ assert.match(runbook,/REWARDLOOP_BILLING_MONITOR_ENABLED/);
+ assert.match(runbook,/SAAS_BILLING_WEBHOOK_OPERATIONS\.md/);
+ for (const fn of ["rewardloop-api", "rewardloop-admin-settings", "razorpay-webhook", "create-razorpay-subscription", "reconcile-razorpay-subscription", "saas-checkout-reconciliation", "saas-billing-portal", "process-razorpay-webhooks"]) {
+  assert.ok(runbook.includes("`"+fn+"`"), `runbook should list ${fn}`);
+ }
 });

@@ -211,7 +211,7 @@ BEGIN
 
   UPDATE public.fraud_cases
      SET status=v_status,
-         assigned_to=p_assigned_to,
+         assigned_to=coalesce(p_assigned_to,v_case.assigned_to),
          resolution_code=CASE WHEN v_status IN ('confirmed_fraud','resolved_legitimate','dismissed') THEN v_resolution_code ELSE NULL END,
          resolution_notes=CASE WHEN v_status IN ('confirmed_fraud','resolved_legitimate','dismissed') THEN v_resolution_notes ELSE NULL END,
          resolved_by=CASE WHEN v_status IN ('confirmed_fraud','resolved_legitimate','dismissed') THEN p_actor_user_id ELSE NULL END,

@@ -143,6 +143,58 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The captured fingerprint is the pre-baseline production state. Once the
+          # baseline is already recorded, later reviewed migrations legitimately
+          # change the schema and ACLs, so do not compare against that old snapshot.
+          migration_output="$(supabase migration list --linked)"
+          printf '%s\\n' "$migration_output"
+          if python3 - "$migration_output" <<'PY'
+          import re, sys
+          baseline = "20261021083000"
+          historical = {
+            "20261021083115","20261021083135","20261021083153","20261021083301",
+            "20261021083322","20261021083507","20261021083518","20261021083620",
+            "20261021083632","20261021113806","20261021114631","20261021114919",
+            "20261021121229",
+          }
+          remote = set()
+          for line in sys.argv[1].splitlines():
+              cells = line.split("|")
+              if len(cells) < 2:
+                  continue
+              match = re.search(r"(?<!\\d)(\\d{14})(?!\\d)", cells[1])
+              if match:
+                  remote.add(match.group(1))
+          if not historical.issubset(remote):
+              raise SystemExit("Remote migration history does not match the expected historical baseline; refusing automatic release.")
+          if baseline in remote:
+              print("Baseline already recorded; the original pre-baseline fingerprint check is not applicable to the migrated schema.")
+              raise SystemExit(0)
+          if remote != historical:
+              raise SystemExit("Unexpected remote migration history before baseline repair; refusing production mutation.")
+          print("Pre-baseline history confirmed; checking the captured live schema before baseline repair.")
+          PY
+          then
+            baseline_already_recorded="$(python3 - "$migration_output" <<'PY'
+          import re, sys
+          versions = set()
+          for line in sys.argv[1].splitlines():
+              cells = line.split("|")
+              if len(cells) >= 2:
+                  match = re.search(r"(?<!\\d)(\\d{14})(?!\\d)", cells[1])
+                  if match:
+                      versions.add(match.group(1))
+          print("yes" if "20261021083000" in versions else "no")
+          PY
+          )"
+          else
+            echo "::error::Remote migration history is unexpected; refusing production mutation."
+            exit 1
+          fi
+          if [[ "$baseline_already_recorded" == "yes" ]]; then
+            echo "PASS: baseline is already recorded; skip the initial-state fingerprint check."
+            exit 0
+          fi
           python3 - <<'PY' > /tmp/rewardloop-live-schema-query.json
           import json
           from pathlib import Path

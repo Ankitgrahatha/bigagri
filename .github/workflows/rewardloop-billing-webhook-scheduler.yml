@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   process:
+    if: vars.REWARDLOOP_BILLING_MONITOR_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     env:

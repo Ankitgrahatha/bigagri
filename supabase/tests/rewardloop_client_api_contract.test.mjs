@@ -87,3 +87,12 @@ test("tenant scope is selected server-side and never accepted as an API authorit
   assert.match(api, /tenant\.public_catalog_enabled !== true/);
   assert.doesNotMatch(api, /\.eq\("tenant_id",\s*body\.tenant_id\)/);
 });
+
+test("main API bounds request bodies before JSON parsing and rejects malformed shapes", () => {
+  assert.match(api, /MAX_REQUEST_BODY_BYTES = 64 \* 1024/);
+  assert.match(api, /async function readLimitedJson\(req: Request\)/);
+  assert.match(api, /total > MAX_REQUEST_BODY_BYTES/);
+  assert.match(api, /parsedBody\.tooLarge \? 413 : 400/);
+  assert.match(api, /!parsedBody\.value \|\| typeof parsedBody\.value !== "object" \|\| Array\.isArray\(parsedBody\.value\)/);
+  assert.doesNotMatch(api, /const body = await req\.json\(\)/);
+});

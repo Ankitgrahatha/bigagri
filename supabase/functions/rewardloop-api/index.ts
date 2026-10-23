@@ -5,6 +5,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const PUBLIC_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "";
 const TENANT_SLUG = "growta-rewardloop";
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 // Production is the only built-in browser origin. Add preview/custom origins
 // explicitly through ALLOWED_ORIGINS in Edge Function secrets.
 const DEFAULT_ALLOWED_ORIGINS = ["https://bigagri.vercel.app"];
@@ -26,6 +27,39 @@ function respond(status: number, payload: Record<string, unknown>, origin?: stri
   const headers = new Headers(corsHeaders);
   if (origin && ALLOWED_ORIGINS.has(origin)) headers.set("Access-Control-Allow-Origin", origin);
   return new Response(JSON.stringify(payload), { status, headers });
+}
+
+async function readLimitedJson(req: Request): Promise<{ ok: true; value: unknown } | { ok: false; tooLarge: boolean }> {
+  const contentLength = Number(req.headers.get("content-length") ?? "0");
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) return { ok: false, tooLarge: true };
+  if (!req.body) return { ok: true, value: {} };
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_REQUEST_BODY_BYTES) {
+        await reader.cancel().catch(() => {});
+        return { ok: false, tooLarge: true };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { ok: false, tooLarge: false };
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  try {
+    return { ok: true, value: JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) };
+  } catch {
+    return { ok: false, tooLarge: false };
+  }
 }
 
 type RedisLimitResult = { allowed: boolean; retryAfterSeconds?: number; configured: boolean };
@@ -120,7 +154,10 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const body = await req.json().catch(() => ({}));
+    const parsedBody = await readLimitedJson(req);
+    if (!parsedBody.ok) return reply(parsedBody.tooLarge ? 413 : 400, { ok: false, error: parsedBody.tooLarge ? "payload_too_large" : "invalid_request" });
+    if (!parsedBody.value || typeof parsedBody.value !== "object" || Array.isArray(parsedBody.value)) return reply(400, { ok: false, error: "invalid_request" });
+    const body = parsedBody.value as Record<string, unknown>;
     const action = typeof body.action === "string" ? body.action : "";
 
     const ratePolicy: Record<string, { limit: number; windowSeconds: number }> = {

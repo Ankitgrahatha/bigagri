@@ -75,3 +75,7 @@ verify_jwt = true
 # Tenant-scoped read-only plan/subscription view for the billing portal.
 [functions.saas-billing-portal]
 verify_jwt = true
+
+# Operator-assisted recovery verifies Razorpay state before binding a subscription.
+[functions.reconcile-razorpay-subscription]
+verify_jwt = true

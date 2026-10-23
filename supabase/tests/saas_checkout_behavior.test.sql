@@ -76,6 +76,20 @@ BEGIN
     RAISE EXCEPTION 'non-admin was allowed to view reconciliation queue: %', v_result;
   END IF;
 
+  v_result := public.get_saas_checkout_recovery_target_internal(v_user_id, v_tenant_id, v_subscription_id);
+  IF v_result->>'ok' <> 'true'
+     OR v_result->>'expected_provider_plan_id' <> 'plan_checkout_monthly'
+     OR v_result->>'idempotency_key' <> 'checkout-idem-key-0001' THEN
+    RAISE EXCEPTION 'authorized checkout recovery target was not returned: %', v_result;
+  END IF;
+
+  v_result := public.get_saas_checkout_recovery_target_internal(
+    'd6a2f7d1-4e22-4b2a-8f1a-5a7100010099'::uuid, v_tenant_id, v_subscription_id
+  );
+  IF v_result->>'ok' <> 'false' OR v_result->>'error' <> 'forbidden' THEN
+    RAISE EXCEPTION 'non-admin was allowed to inspect checkout recovery target: %', v_result;
+  END IF;
+
   v_result := public.finalize_saas_checkout_internal(
     v_subscription_id, 'sub_checkout_regression', 'https://rzp.io/i/checkout-regression'
   );

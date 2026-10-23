@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 
 const MAX_BODY_BYTES = 2048;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DEFAULT_ALLOWED_ORIGINS = ["https://bigagri.vercel.app"];
+const DEFAULT_ALLOWED_ORIGINS = ["https://bigagri.vercel.app", "https://growta-rewardloop.vercel.app"];
 const ALLOWED_ORIGINS = new Set([
   ...DEFAULT_ALLOWED_ORIGINS,
   ...(Deno.env.get("ALLOWED_ORIGINS") ?? "").split(",").map((value) => value.trim()).filter(Boolean),

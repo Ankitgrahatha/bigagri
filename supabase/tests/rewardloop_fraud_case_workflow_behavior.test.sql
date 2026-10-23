@@ -72,6 +72,20 @@ BEGIN
   END IF;
 
   v_result := public.rewardloop_update_fraud_case_internal(
+    v_admin_a,v_tenant_a,v_case_id,'investigating',v_admin_b,NULL,NULL
+  );
+  IF v_result->>'ok' <> 'false' OR v_result->>'error' <> 'assignee_not_authorized' THEN
+    RAISE EXCEPTION 'cross-tenant assignee was not rejected: %',v_result;
+  END IF;
+
+  v_result := public.rewardloop_update_fraud_case_internal(
+    v_admin_a,v_tenant_a,v_case_id,'dismissed',NULL,'insufficient_evidence',''
+  );
+  IF v_result->>'ok' <> 'false' OR v_result->>'error' <> 'resolution_details_required' THEN
+    RAISE EXCEPTION 'resolution without evidence notes was not rejected: %',v_result;
+  END IF;
+
+  v_result := public.rewardloop_update_fraud_case_internal(
     v_admin_a,v_tenant_a,v_case_id,'resolved_legitimate',NULL,'false_positive',
     'Review found no evidence of intentional abuse'
   );

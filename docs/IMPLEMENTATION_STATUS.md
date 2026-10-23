@@ -97,7 +97,7 @@ Current CI evidence on main:
 
 ## SaaS plans, payments and billing — source implemented, production unverified
 
-PRs #91–#95 added the Razorpay SaaS billing foundation in source; PRs #101–#103 tightened the release boundary, scheduler regression coverage, and admin settings honesty: versioned plans/pricing, tenant subscriptions and payment-attempt records, fail-closed entitlements, idempotent subscription checkout, a read-only checkout-reconciliation queue, provider-verified checkout recovery, a signed webhook receiver with durable deduplication, a bounded processing worker, aggregate health metrics, and an operations/runbook workflow.
+PRs #91–#95 added the Razorpay SaaS billing foundation in source: versioned plans/pricing, tenant subscriptions and payment-attempt records, fail-closed entitlements, idempotent subscription checkout, a read-only checkout-reconciliation queue, provider-verified checkout recovery, a signed webhook receiver with durable deduplication, a bounded processing worker, aggregate health metrics, and an operations/runbook workflow. PRs #101–#103 subsequently tightened release-boundary documentation, scheduler regression coverage, and admin settings honesty.
 
 **Important:** this is not proof of a working live billing service. The production project still has only 13 historical migrations and does not list the billing Edge Functions. The billing migrations/functions must pass the controlled release workflow and test-mode acceptance before billing is enabled.
 

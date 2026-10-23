@@ -1,4 +1,4 @@
-const CACHE = "growta-rewardloop-shell-v4";
+const CACHE = "growta-rewardloop-shell-v5";
 const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest", "/icon.svg"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));

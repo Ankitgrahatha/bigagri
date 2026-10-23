@@ -57,11 +57,38 @@ BEGIN
     RAISE EXCEPTION 'same-key pending reservation must not create a second provider subscription: %', v_result;
   END IF;
 
+  UPDATE private.saas_tenant_subscriptions
+  SET created_at = now() - interval '11 minutes'
+  WHERE id = v_subscription_id;
+
+  v_result := public.list_saas_checkout_reconciliation_internal(v_user_id, v_tenant_id, 10);
+  IF v_result->>'ok' <> 'true'
+     OR jsonb_array_length(v_result->'checkouts') <> 1
+     OR v_result->'checkouts'->0->>'needs_provider_reconciliation' <> 'true'
+     OR v_result->'checkouts'->0->>'provider_subscription_id' IS NOT NULL THEN
+    RAISE EXCEPTION 'ambiguous checkout was not surfaced in reconciliation queue: %', v_result;
+  END IF;
+
+  v_result := public.list_saas_checkout_reconciliation_internal(
+    'd6a2f7d1-4e22-4b2a-8f1a-5a7100010099'::uuid, v_tenant_id, 10
+  );
+  IF v_result->>'ok' <> 'false' OR v_result->>'error' <> 'forbidden' THEN
+    RAISE EXCEPTION 'non-admin was allowed to view reconciliation queue: %', v_result;
+  END IF;
+
   v_result := public.finalize_saas_checkout_internal(
     v_subscription_id, 'sub_checkout_regression', 'https://rzp.io/i/checkout-regression'
   );
   IF v_result->>'ok' <> 'true' THEN
     RAISE EXCEPTION 'checkout finalization failed: %', v_result;
+  END IF;
+
+  v_result := public.list_saas_checkout_reconciliation_internal(v_user_id, v_tenant_id, 10);
+  IF v_result->>'ok' <> 'true'
+     OR v_result->'checkouts'->0->>'needs_provider_reconciliation' <> 'false'
+     OR v_result->'checkouts'->0->>'provider_subscription_id' <> 'sub_checkout_regression'
+     OR v_result->'checkouts'->0->>'checkout_url' <> 'https://rzp.io/i/checkout-regression' THEN
+    RAISE EXCEPTION 'finalized checkout was not reported with provider correlation: %', v_result;
   END IF;
 
   INSERT INTO private.saas_payment_webhook_events (

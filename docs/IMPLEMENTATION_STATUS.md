@@ -53,6 +53,14 @@ Current CI evidence on main:
 
 **Release boundary:** a fresh read-only production catalog comparison on 2026-10-23 matched the checked-in baseline fingerprints for columns, constraints, enums, indexes, policies, RLS flags, and triggers; all 16 captured function body/security hashes and all 15 per-table ACL fingerprints also matched. This materially strengthens the parity evidence but is not a backup, does not reconcile migration history, and does not apply any DDL. The production migration-history repair remains unperformed pending backup/recovery confirmation and explicit operator approval. Auth security configuration, server-side test credentials, reviewed migration dry-run, and test-mode end-to-end evidence remain outstanding.
 
+## Latest repository changes after PRs #101–#103
+
+- PR #101 clarifies the production runbook: eight billing/RewardLoop Edge Functions are expected in the controlled release; read-only smoke checks do not prove the billing lifecycle; Vercel frontend deployment must be verified independently.
+- PR #102 adds contract assertions for the opt-in billing scheduler, five-minute cadence, bounded batch/runtime, required aggregate health fields, alert thresholds, and secret/payload non-disclosure.
+- PR #103 disables the admin test-email action until a real privileged email integration exists, removes the placeholder click handler, adds a regression test, and updates the PRD traceability matrix.
+- The full local Node contract suite on latest main passed **155/155**. JavaScript syntax checks and `git diff --check` passed.
+- The Vercel status check on PR #103 still failed with the account's daily deployment quota (HTTP 402, `api-deployments-free-per-day`). The frontend has not been proven deployed from latest main.
+
 ## Latest release-gate evidence
 
 - The baseline-parity test and isolated PostgreSQL workflow validate the schema-only baseline, the 13 historical no-op markers, catalog fingerprints, function bodies/security configuration, per-table grants, default privileges, transactional behavior, tenant isolation, and concurrency in disposable CI.
@@ -89,7 +97,7 @@ Current CI evidence on main:
 
 ## SaaS plans, payments and billing — source implemented, production unverified
 
-PRs #91–#103 have added a meaningful Razorpay SaaS billing foundation in source: versioned plans/pricing, tenant subscriptions and payment-attempt records, fail-closed entitlements, idempotent subscription checkout, a read-only checkout-reconciliation queue, provider-verified checkout recovery, a signed webhook receiver with durable deduplication, a bounded processing worker, aggregate health metrics, and an operations/runbook workflow.
+PRs #91–#95 added the Razorpay SaaS billing foundation in source; PRs #101–#103 tightened the release boundary, scheduler regression coverage, and admin settings honesty: versioned plans/pricing, tenant subscriptions and payment-attempt records, fail-closed entitlements, idempotent subscription checkout, a read-only checkout-reconciliation queue, provider-verified checkout recovery, a signed webhook receiver with durable deduplication, a bounded processing worker, aggregate health metrics, and an operations/runbook workflow.
 
 **Important:** this is not proof of a working live billing service. The production project still has only 13 historical migrations and does not list the billing Edge Functions. The billing migrations/functions must pass the controlled release workflow and test-mode acceptance before billing is enabled.
 

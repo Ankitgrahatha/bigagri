@@ -171,6 +171,7 @@ DECLARE
   v_resolution_code text := lower(trim(coalesce(p_resolution_code,'')));
   v_resolution_notes text := trim(coalesce(p_resolution_notes,''));
   v_terminal boolean;
+  v_old_status text;
 BEGIN
   IF p_actor_user_id IS NULL OR p_tenant_id IS NULL OR p_case_id IS NULL
      OR v_status NOT IN ('open','investigating','confirmed_fraud','resolved_legitimate','dismissed')
@@ -198,8 +199,9 @@ BEGIN
     RETURN jsonb_build_object('ok',false,'error','fraud_case_not_found');
   END IF;
 
-  v_terminal := v_case.status IN ('confirmed_fraud','resolved_legitimate','dismissed');
-  IF v_terminal AND v_status <> v_case.status THEN
+  v_old_status := v_case.status;
+  v_terminal := v_old_status IN ('confirmed_fraud','resolved_legitimate','dismissed');
+  IF v_terminal THEN
     RETURN jsonb_build_object('ok',false,'error','fraud_case_terminal');
   END IF;
   IF v_status IN ('confirmed_fraud','resolved_legitimate','dismissed')
@@ -222,7 +224,7 @@ BEGIN
   VALUES (
     p_tenant_id,p_actor_user_id,'fraud_case_updated','fraud_case',v_case.id,
     CASE WHEN v_case.resolution_notes IS NULL THEN 'Fraud case status or assignment updated' ELSE v_case.resolution_notes END,
-    jsonb_build_object('status',CASE WHEN v_terminal THEN v_case.status ELSE NULL END),
+    jsonb_build_object('status',v_old_status),
     jsonb_build_object('status',v_case.status,'severity',v_case.severity,'assigned_to',v_case.assigned_to,
       'resolution_code',v_case.resolution_code)
   );

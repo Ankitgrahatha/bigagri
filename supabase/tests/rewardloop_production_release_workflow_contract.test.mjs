@@ -14,6 +14,8 @@ test("production release is manual and requires explicit confirmations",()=>{
  assert.match(workflow,/confirm_live_schema_matches_baseline:/);
  assert.match(workflow,/confirm_billing_test_secrets_configured == 'YES'/);
  assert.match(workflow,/confirm_billing_test_secrets_configured:/);
+ assert.match(workflow,/confirm_backup_restore_ready == 'YES'/);
+ assert.match(workflow,/confirm_backup_restore_ready:/);
  assert.match(workflow,/CONFIRM_LIVE_SCHEMA_MATCHES_BASELINE/);
  assert.match(workflow,/environment: production/);
  assert.match(workflow,/environments\/production/);

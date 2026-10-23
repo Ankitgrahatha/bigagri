@@ -42,5 +42,9 @@ test("Edge Function deployment follows successful migrations and uses read-only 
   assert.match(workflow,new RegExp(fn));
  }
  assert.match(workflow,/admin_dashboard/);
+ assert.match(workflow,/\/admin-billing\.html/);
+ assert.match(workflow,/razorpay-webhook/);
+ assert.match(workflow,/webhook_code.*401/s);
+ assert.match(workflow,/503 means required server-side configuration is missing/);
  assert.match(runbook,/does not create products, issue QR codes, claim points, redeem rewards/);
 });

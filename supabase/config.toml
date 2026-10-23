@@ -67,3 +67,7 @@ verify_jwt = false
 # Supabase Auth before performing tenant membership checks. Credentials stay server-side.
 [functions.create-razorpay-subscription]
 verify_jwt = true
+
+# Read-only checkout reconciliation queue for active tenant super-admins.
+[functions.saas-checkout-reconciliation]
+verify_jwt = true

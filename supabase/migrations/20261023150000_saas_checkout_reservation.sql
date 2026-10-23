@@ -257,3 +257,66 @@ REVOKE ALL PRIVILEGES ON FUNCTION public.finalize_saas_checkout_internal(uuid,te
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.finalize_saas_checkout_internal(uuid,text,text)
   TO service_role;
+
+CREATE OR REPLACE FUNCTION private.fail_saas_checkout_reservation(
+  p_subscription_id uuid,
+  p_provider_http_status integer
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public', 'private'
+AS $function$
+DECLARE
+  v_subscription private.saas_tenant_subscriptions%rowtype;
+BEGIN
+  IF p_subscription_id IS NULL OR p_provider_http_status NOT BETWEEN 400 AND 499 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'invalid_provider_failure');
+  END IF;
+
+  SELECT * INTO v_subscription
+  FROM private.saas_tenant_subscriptions
+  WHERE id = p_subscription_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR v_subscription.status <> 'incomplete'
+     OR v_subscription.provider_subscription_id IS NOT NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'checkout_not_rejectable');
+  END IF;
+
+  UPDATE private.saas_payment_attempts
+  SET status = 'failed',
+      failure_code = 'provider_rejected_' || p_provider_http_status::text,
+      updated_at = now()
+  WHERE subscription_id = p_subscription_id AND status = 'initiated';
+
+  UPDATE private.saas_tenant_subscriptions
+  SET status = 'expired', updated_at = now()
+  WHERE id = p_subscription_id;
+
+  RETURN jsonb_build_object('ok', true);
+END
+$function$;
+
+REVOKE ALL PRIVILEGES ON FUNCTION private.fail_saas_checkout_reservation(uuid,integer)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.fail_saas_checkout_reservation(uuid,integer)
+  TO service_role;
+
+CREATE OR REPLACE FUNCTION public.fail_saas_checkout_reservation_internal(
+  p_subscription_id uuid,
+  p_provider_http_status integer
+)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public', 'private'
+AS $function$
+  SELECT private.fail_saas_checkout_reservation(p_subscription_id, p_provider_http_status);
+$function$;
+
+REVOKE ALL PRIVILEGES ON FUNCTION public.fail_saas_checkout_reservation_internal(uuid,integer)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.fail_saas_checkout_reservation_internal(uuid,integer)
+  TO service_role;
+

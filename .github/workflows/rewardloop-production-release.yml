@@ -27,6 +27,12 @@ on:
         options: ["NO", "YES"]
         default: "NO"
         required: true
+      confirm_backup_restore_ready:
+        description: "Confirm a current production backup or approved recovery point exists and the restore path/constraints have been reviewed."
+        type: choice
+        options: ["NO", "YES"]
+        default: "NO"
+        required: true
 
 permissions:
   contents: read
@@ -38,7 +44,7 @@ concurrency:
 
 jobs:
   release:
-    if: inputs.confirm_production_release == 'YES' && inputs.auth_leaked_password_protection_enabled == 'YES' && inputs.confirm_billing_test_secrets_configured == 'YES' && github.ref == 'refs/heads/main'
+    if: inputs.confirm_production_release == 'YES' && inputs.auth_leaked_password_protection_enabled == 'YES' && inputs.confirm_billing_test_secrets_configured == 'YES' && inputs.confirm_backup_restore_ready == 'YES' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 30

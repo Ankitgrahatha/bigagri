@@ -63,7 +63,7 @@ verify_jwt = false
 [functions.process-razorpay-webhooks]
 verify_jwt = false
 
-# Checkout verifies the bearer token with Supabase Auth inside the function before
-# performing tenant membership checks. Razorpay credentials remain server-side.
+# The gateway verifies the bearer JWT; the handler also resolves the user with
+# Supabase Auth before performing tenant membership checks. Credentials stay server-side.
 [functions.create-razorpay-subscription]
-verify_jwt = false
+verify_jwt = true

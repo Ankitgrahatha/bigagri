@@ -5,7 +5,18 @@ const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const PUBLIC = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "";
 const TENANT = "growta-rewardloop";
 const headers = {"Access-Control-Allow-Origin":"https://bigagri.vercel.app","Access-Control-Allow-Headers":"authorization, apikey, content-type, x-client-info","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
+const MAX_BODY_BYTES = 32 * 1024;
 const respond=(status:number,body:Record<string,unknown>)=>new Response(JSON.stringify(body),{status,headers});
+async function readLimitedJson(req:Request):Promise<{ok:true;value:unknown}|{ok:false;tooLarge:boolean}>{
+ const length=Number(req.headers.get("content-length")??"0");
+ if(Number.isFinite(length)&&length>MAX_BODY_BYTES)return {ok:false,tooLarge:true};
+ if(!req.body)return {ok:true,value:{}};
+ const reader=req.body.getReader();const chunks:Uint8Array[]=[];let total=0;
+ try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>MAX_BODY_BYTES){await reader.cancel().catch(()=>{});return {ok:false,tooLarge:true};}chunks.push(value);}}
+ catch{return {ok:false,tooLarge:false};}finally{reader.releaseLock();}
+ const bytes=new Uint8Array(total);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+ try{return {ok:true,value:JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bytes))};}catch{return {ok:false,tooLarge:false};}
+}
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS") return new Response("ok",{headers});
  if(req.method!=="POST") return respond(405,{ok:false,error:"method_not_allowed"});
@@ -19,7 +30,10 @@ Deno.serve(async(req:Request)=>{
   const {data:member,error:me}=await admin.from("tenant_memberships").select("role").eq("tenant_id",tenant.id).eq("user_id",user.id).eq("status","active").in("role",["brand_admin","super_admin"]).maybeSingle();
   if(me) return respond(500,{ok:false,error:"admin_authorization_check_failed"});
   if(!member) return respond(403,{ok:false,error:"admin_access_required"});
-  const body=await req.json().catch(()=>({})); const action=String(body.action||"");
+  const parsed=await readLimitedJson(req);
+  if(!parsed.ok)return respond(parsed.tooLarge?413:400,{ok:false,error:parsed.tooLarge?"payload_too_large":"invalid_request"});
+  if(!parsed.value||typeof parsed.value!=="object"||Array.isArray(parsed.value))return respond(400,{ok:false,error:"invalid_request"});
+  const body=parsed.value as Record<string,any>; const action=typeof body.action==="string"?body.action:"";
   if(action==="admin_settings_get"){
    const {data,error}=await admin.from("rewardloop_admin_settings").select("email_provider,sender_email,sender_name,smtp_host,smtp_port,smtp_username,site_url,redirect_urls,signup_enabled,email_confirmation_required,confirmation_subject,confirmation_body,recovery_subject,recovery_body,smtp_configured,updated_at").eq("tenant_id",tenant.id).maybeSingle();
    if(error) return respond(500,{ok:false,error:"settings_load_failed"});

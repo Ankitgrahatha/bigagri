@@ -225,14 +225,14 @@ BEGIN
   END IF;
 
   SELECT * INTO v_membership FROM public.tenant_memberships
-   WHERE tenant_id=v_invitation.tenant_id AND user_id=p_actor_user_id AND role=v_invitation.role FOR UPDATE;
+   WHERE tenant_id=v_invitation.tenant_id AND user_id=p_actor_user_id AND role=v_invitation.role::public.partner_role FOR UPDATE;
   IF FOUND THEN
     IF v_membership.status <> 'active' THEN
       RETURN jsonb_build_object('ok',false,'error','membership_conflict');
     END IF;
   ELSE
     INSERT INTO public.tenant_memberships(tenant_id,user_id,role,status)
-    VALUES (v_invitation.tenant_id,p_actor_user_id,v_invitation.role,'active')
+    VALUES (v_invitation.tenant_id,p_actor_user_id,v_invitation.role::public.partner_role,'active')
     RETURNING * INTO v_membership;
   END IF;
 

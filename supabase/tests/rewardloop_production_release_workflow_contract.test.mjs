@@ -24,7 +24,7 @@ test("production release verifies CI and migration history before mutating produ
  assert.match(workflow,/\["supabase","migration","repair","--status","applied",baseline,"--linked"\]/);
  assert.match(workflow,/Refusing baseline history repair/);
  assert.ok(workflow.indexOf("Verify live schema fingerprints before migration-history repair") < workflow.indexOf("Reconcile only the verified baseline and validate migration allowlist"));
- assert.ok(workflow.indexOf("Verify live schema fingerprints before migration-history repair") < workflow.indexOf("supabase","migration","repair") || workflow.includes('["supabase","migration","repair"'));
+ assert.ok(workflow.indexOf("Verify live schema fingerprints before migration-history repair") < workflow.indexOf('subprocess.run(["supabase","migration","repair"'));
  assert.match(workflow,/CONFIRM_LIVE_SCHEMA_MATCHES_BASELINE.*!=.*"YES"/);
  assert.match(workflow,/supabase secrets list --project-ref/);
  assert.match(workflow,/Verify live schema fingerprints before migration-history repair/);

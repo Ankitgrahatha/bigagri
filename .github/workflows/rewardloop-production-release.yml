@@ -252,7 +252,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for path in / /admin.html /admin-settings.html; do
+          for path in / /admin.html /admin-settings.html /admin-billing.html; do
             code="$(curl -sS -o /dev/null -w '%{http_code}' "https://bigagri.vercel.app$path")"
             echo "$path -> HTTP $code"
             test "$code" = "200"
@@ -267,3 +267,9 @@ jobs:
             -H 'Content-Type: application/json' --data '{"action":"admin_dashboard"}')"
           echo "Unauthenticated admin API request -> HTTP $auth_code"
           test "$auth_code" = "401" || test "$auth_code" = "403"
+          webhook_code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "https://$SUPABASE_PROJECT_REF.supabase.co/functions/v1/razorpay-webhook" \
+            -H 'Content-Type: application/json' --data '{"event":"release_smoke_probe"}')"
+          echo "Razorpay webhook invalid-signature guard -> HTTP $webhook_code"
+          # A 401 proves the provider callback is deployed and its secret is configured;
+          # a 503 means required server-side configuration is missing.
+          test "$webhook_code" = "401"

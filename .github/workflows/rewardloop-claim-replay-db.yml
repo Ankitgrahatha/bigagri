@@ -120,6 +120,12 @@ jobs:
             fi
           done
 
+      - name: Verify SaaS billing table and RPC privileges
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/saas_billing_privileges.test.sql
+
+      - name: Run SaaS webhook processor behavioral regression
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/saas_webhook_processor_behavior.test.sql
+
       - name: Apply local seed data twice to verify idempotency
         run: |
           psql -v ON_ERROR_STOP=1 -f supabase/seed.sql

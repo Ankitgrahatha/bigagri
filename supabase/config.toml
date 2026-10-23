@@ -52,3 +52,13 @@ secure_password_change = true
 max_frequency = "1m"
 otp_length = 6
 otp_expiry = 3600
+
+# Razorpay authenticates this endpoint with its HMAC signature over the exact raw
+# body. JWT verification is disabled only for this provider callback endpoint.
+[functions.razorpay-webhook]
+verify_jwt = false
+
+# Internal batch worker uses a dedicated shared secret. Keep it in Supabase secrets
+# and the scheduler only; never include it in client code or webhook payloads.
+[functions.process-razorpay-webhooks]
+verify_jwt = false

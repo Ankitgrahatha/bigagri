@@ -6,13 +6,13 @@ const root = new URL("../../", import.meta.url);
 const read = (name) => readFileSync(new URL(name, root), "utf8");
 
 test("all browser JavaScript entry points exist", () => {
-  for (const name of ["app.js", "admin.js", "admin-settings.js", "sw.js"]) {
+  for (const name of ["app.js", "admin.js", "admin-settings.js", "admin-billing.js", "sw.js"]) {
     assert.ok(existsSync(new URL(name, root)), name + " exists");
   }
 });
 
 test("all first-party assets referenced by HTML exist", () => {
-  const htmlFiles = ["index.html", "admin.html", "admin-settings.html"];
+  const htmlFiles = ["index.html", "admin.html", "admin-settings.html", "admin-billing.html"];
   const refs = [];
   for (const file of htmlFiles) {
     const html = read(file);

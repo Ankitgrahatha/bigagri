@@ -71,3 +71,7 @@ verify_jwt = true
 # Read-only checkout reconciliation queue for active tenant super-admins.
 [functions.saas-checkout-reconciliation]
 verify_jwt = true
+
+# Tenant-scoped read-only plan/subscription view for the billing portal.
+[functions.saas-billing-portal]
+verify_jwt = true

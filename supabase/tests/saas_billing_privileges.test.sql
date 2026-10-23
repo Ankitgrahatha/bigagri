@@ -71,7 +71,10 @@ BEGIN
      OR NOT has_function_privilege('service_role', 'public.fail_saas_checkout_reservation_internal(uuid,integer)', 'EXECUTE')
      OR has_function_privilege('anon', 'public.list_saas_checkout_reconciliation_internal(uuid,uuid,integer)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.list_saas_checkout_reconciliation_internal(uuid,uuid,integer)', 'EXECUTE')
-     OR NOT has_function_privilege('service_role', 'public.list_saas_checkout_reconciliation_internal(uuid,uuid,integer)', 'EXECUTE') THEN
+     OR NOT has_function_privilege('service_role', 'public.list_saas_checkout_reconciliation_internal(uuid,uuid,integer)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.get_saas_billing_portal_internal(uuid,uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.get_saas_billing_portal_internal(uuid,uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.get_saas_billing_portal_internal(uuid,uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'checkout RPC grants are not service-role-only';
   END IF;
 

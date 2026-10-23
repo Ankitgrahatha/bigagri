@@ -19,13 +19,15 @@ Mobile-first, Hindi-first rewards PWA for farmers and agricultural partners. Thi
 - Server-side, idempotent QR claims and redemption requests.
 - Admin campaign creation in draft, date-window validation, explicit activation, pause/archive controls, and audited lifecycle transitions.
 - Admin partner search/status filters and CSV exports for partners and recent redemption operations.
+- A tenant-scoped SaaS billing portal at `/admin-billing.html` for published-plan browsing and Razorpay-hosted subscription checkout; ambiguous checkouts are surfaced to tenant super-admins in a read-only reconciliation queue.
 - Redemption fulfilment/cancellation controls with transactional points refunds and finite-stock restoration.
 - Demo rewards are labelled and cannot be redeemed.
 
 ## Repository layout
 
 - `index.html` — farmer application shell.
-- `admin.html`, `admin.js`, `admin.css` — protected partner verification, campaign lifecycle, QR issuance, and redemption operations console.
+- `admin.html`, `admin.js`, `admin.css` — tenant-scoped partner verification, campaign lifecycle, QR issuance, redemption, and audit operations console.
+- `admin-billing.html`, `admin-billing.js` — tenant-scoped published-plan catalog, Razorpay-hosted checkout initiation, current subscription summary, and read-only super-admin reconciliation queue.
 - `styles.css` — responsive design system.
 - `app.js` — UI, Supabase Auth and data integration.
 - `manifest.webmanifest`, `sw.js` — PWA metadata and static shell caching.
@@ -46,6 +48,7 @@ Vercel settings should use **Framework Preset: Other**, root directory `.`, no b
 - Browser config uses only the Supabase URL and publishable key.
 - The Edge Function uses platform-provided `SUPABASE_URL`, `SUPABASE_ANON_KEY` (or `SUPABASE_PUBLISHABLE_KEY`) and `SUPABASE_SERVICE_ROLE_KEY`. Never expose the service-role key in frontend code or GitHub.
 - The function must keep JWT verification enabled; it also validates the current user before using privileged database operations.
+- SaaS billing is a gated foundation: configure Razorpay test-mode plans/secrets and cycle counts only after reviewing `docs/SAAS_BILLING_WEBHOOK_OPERATIONS.md`. The billing portal does not yet implement GST invoicing, refunds, proration, plan changes, or subscription cancellation.
 
 ## Launch checklist
 

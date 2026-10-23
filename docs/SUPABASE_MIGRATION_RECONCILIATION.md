@@ -32,6 +32,24 @@ The isolated PostgreSQL workflow now applies the baseline and the 13 historical 
 
 This is a stricter gate than comparing object names and counts, but it is still a fingerprint of the listed catalog surfaces—not a physical backup or proof of runtime behavior. The workflow must pass before considering the baseline equivalent. Do not run history repair or push migrations solely because this file contains the expected hashes.
 
+## Fresh live catalog parity recheck (2026-10-23)
+
+A read-only query against the connected production project re-computed the catalog fingerprints captured above. All seven category count/hash pairs matched exactly:
+
+- Public columns: 170 / `557cf04098d8519f16d8cc1a9d145088734cb6ef9cefce7bf3dcc467098719a2`
+- Public constraints: 92 / `33c1dc63ba89a52e68e4d54ea54e2ee971269dfcd3821b339fcdbc499e09ebf2`
+- Public enum labels: 28 / `e42d1fab480c15e989b9c1ed6bb57176c1c2f3bf3440817df91e39bbe59a40a4`
+- Public indexes: 60 / `9d67f1e13fcaca28de634af6810f33d0b478806b62b6c49b69d4a2469a7e8a1d`
+- Public RLS policies: 14 / `55e32a204770348638ee3366e69ec6e77b590dfcaedd97a46e31cbe12e1b65dd`
+- Public/private RLS flags: 15 / `ea231962c74cee2034e24221b023b7bcf79a01a0aa32550fc22eb6c413fd752a`
+- Public/private non-internal triggers: 0 / `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`
+
+The 16 expected function body MD5/security-definer/search-path records also matched, and all 15 per-table ACL fingerprints matched. These are read-only results; no schema, data, grants, or migration history was changed.
+
+The same read-only inspection shows the production default ACL still grants broad privileges to `anon` and `authenticated` for new objects created under the historical `postgres` defaults. The repository migration `20261021193000_harden_default_privileges.sql` is not in the 13 applied remote versions and must be included in the reviewed post-baseline migration release. Do not attempt to “fix” this by ad hoc grants outside the reviewed migration chain.
+
+This parity evidence does **not** replace a physical backup/restore plan or authorize history-only migration repair. Those operational prerequisites and the explicit release approval remain open.
+
 ## Critical deployment boundary
 
 **Do not execute the baseline SQL on the existing production database.** Its DDL describes objects that already exist, so running it directly would create conflicts. The baseline is intended to reconstruct a new local/test database and to become the local source of truth.

@@ -155,6 +155,9 @@ jobs:
       - name: Run tenant-scoped fraud case workflow regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_fraud_case_workflow_behavior.test.sql
 
+      - name: Run audited reward catalogue regression test
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_reward_catalogue_behavior.test.sql
+
       - name: Run privileged admin RPC tenant-isolation regression test
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rewardloop_admin_rpc_tenant_isolation.test.sql
 

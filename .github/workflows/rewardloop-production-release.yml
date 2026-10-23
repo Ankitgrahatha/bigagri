@@ -248,7 +248,7 @@ jobs:
             # SaaS billing migrations already present in this repository.
             "20261023100000","20261023110000","20261023120000","20261023130000",
             "20261023140000","20261023150000","20261023160000","20261023170000",
-            "20261023180000","20261023190000","20261023200000",
+            "20261023180000","20261023190000","20261023200000","20261023210000",
           }
           expected_local = historical | {baseline} | post
           actual_local = {p.name[:14] for p in Path("supabase/migrations").glob("*.sql")}

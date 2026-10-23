@@ -181,6 +181,9 @@ Deno.serve(async (req: Request) => {
       create_product: { limit: 20, windowSeconds: 60 },
       update_product: { limit: 30, windowSeconds: 60 },
       set_product_status: { limit: 20, windowSeconds: 60 },
+      create_reward: { limit: 15, windowSeconds: 60 },
+      update_reward: { limit: 30, windowSeconds: 60 },
+      set_reward_status: { limit: 20, windowSeconds: 60 },
       admin_fraud_cases: { limit: 30, windowSeconds: 60 },
       create_fraud_case: { limit: 10, windowSeconds: 60 },
       update_fraud_case: { limit: 20, windowSeconds: 60 },
@@ -320,7 +323,7 @@ Deno.serve(async (req: Request) => {
       return reply(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
-    if (["admin_dashboard", "admin_audit_logs", "admin_record_export", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status", "update_product", "admin_fraud_cases", "create_fraud_case", "update_fraud_case"].includes(action)) {
+    if (["admin_dashboard", "admin_audit_logs", "admin_record_export", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status", "update_product", "create_reward", "update_reward", "set_reward_status", "admin_fraud_cases", "create_fraud_case", "update_fraud_case"].includes(action)) {
       // Keep legacy callers working on the original tenant, but allow an explicit
       // tenant context only after checking active membership below.
       const requestedTenantSlug = typeof body.tenant_slug === "string" ? body.tenant_slug.trim() : TENANT_SLUG;
@@ -467,6 +470,90 @@ Deno.serve(async (req: Request) => {
         return reply(200, data);
       }
 
+      if (action === "create_reward") {
+        const slug = typeof body.slug === "string" ? body.slug.trim().toLowerCase() : "";
+        const name = typeof body.name === "string" ? body.name.trim() : "";
+        const nameHi = typeof body.name_hi === "string" ? body.name_hi.trim() : "";
+        const description = typeof body.description === "string" ? body.description.trim() : "";
+        const descriptionHi = typeof body.description_hi === "string" ? body.description_hi.trim() : "";
+        const category = typeof body.category === "string" ? body.category.trim().toLowerCase() : "general";
+        const pointsCost = Number(body.points_cost);
+        const stockRaw = body.stock_quantity;
+        const stockQuantity = stockRaw === undefined || stockRaw === null || stockRaw === "" ? null : Number(stockRaw);
+        const sortOrder = body.sort_order === undefined ? 100 : Number(body.sort_order);
+        const optionalTextInvalid = ["name_hi", "description", "description_hi"].some(key => body[key] != null && typeof body[key] !== "string");
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 80 || name.length < 2 || name.length > 160 ||
+            nameHi.length > 160 || description.length > 2000 || descriptionHi.length > 2000 ||
+            !/^[a-z][a-z0-9_-]{1,63}$/.test(category) || !Number.isSafeInteger(pointsCost) || pointsCost < 1 || pointsCost > 100000000 ||
+            (stockQuantity !== null && (!Number.isSafeInteger(stockQuantity) || stockQuantity < 0)) ||
+            !Number.isSafeInteger(sortOrder) || sortOrder < 0 || sortOrder > 100000 || optionalTextInvalid) {
+          return reply(400, { ok: false, error: "invalid_reward_details" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_create_reward_internal", {
+          p_actor_user_id: user.id, p_tenant_id: tenant.id, p_slug: slug, p_name: name,
+          p_name_hi: nameHi || null, p_description: description || null, p_description_hi: descriptionHi || null,
+          p_category: category, p_points_cost: pointsCost, p_stock_quantity: stockQuantity, p_sort_order: sortOrder,
+        });
+        if (error) return reply(500, { ok: false, error: "reward_create_failed" });
+        if (!data || data.ok !== true) {
+          const status = data?.error === "forbidden" ? 403 : data?.error === "reward_slug_exists" ? 409 : 400;
+          return reply(status, { ok: false, error: data?.error || "reward_create_failed" });
+        }
+        return reply(201, data);
+      }
+
+      if (action === "update_reward") {
+        const rewardId = typeof body.reward_id === "string" ? body.reward_id : "";
+        const name = typeof body.name === "string" ? body.name.trim() : "";
+        const nameHi = typeof body.name_hi === "string" ? body.name_hi.trim() : "";
+        const description = typeof body.description === "string" ? body.description.trim() : "";
+        const descriptionHi = typeof body.description_hi === "string" ? body.description_hi.trim() : "";
+        const category = typeof body.category === "string" ? body.category.trim().toLowerCase() : "general";
+        const pointsCost = Number(body.points_cost);
+        const stockRaw = body.stock_quantity;
+        const stockQuantity = stockRaw === undefined || stockRaw === null || stockRaw === "" ? null : Number(stockRaw);
+        const sortOrder = body.sort_order === undefined ? 100 : Number(body.sort_order);
+        const optionalTextInvalid = ["name_hi", "description", "description_hi"].some(key => body[key] != null && typeof body[key] !== "string");
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rewardId) ||
+            name.length < 2 || name.length > 160 || nameHi.length > 160 || description.length > 2000 || descriptionHi.length > 2000 ||
+            !/^[a-z][a-z0-9_-]{1,63}$/.test(category) || !Number.isSafeInteger(pointsCost) || pointsCost < 1 || pointsCost > 100000000 ||
+            (stockQuantity !== null && (!Number.isSafeInteger(stockQuantity) || stockQuantity < 0)) ||
+            !Number.isSafeInteger(sortOrder) || sortOrder < 0 || sortOrder > 100000 || optionalTextInvalid) {
+          return reply(400, { ok: false, error: "invalid_reward_details" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_update_reward_internal", {
+          p_actor_user_id: user.id, p_tenant_id: tenant.id, p_reward_id: rewardId, p_name: name,
+          p_name_hi: nameHi || null, p_description: description || null, p_description_hi: descriptionHi || null,
+          p_category: category, p_points_cost: pointsCost, p_stock_quantity: stockQuantity, p_sort_order: sortOrder,
+        });
+        if (error) return reply(500, { ok: false, error: "reward_update_failed" });
+        if (!data || data.ok !== true) {
+          const status = data?.error === "forbidden" ? 403 : data?.error === "reward_not_found" ? 404 : 400;
+          return reply(status, { ok: false, error: data?.error || "reward_update_failed" });
+        }
+        return reply(200, data);
+      }
+
+      if (action === "set_reward_status") {
+        const rewardId = typeof body.reward_id === "string" ? body.reward_id : "";
+        const active = body.active;
+        const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(rewardId) ||
+            typeof active !== "boolean" || (!active && reason.length < 5)) {
+          return reply(400, { ok: false, error: "invalid_reward_status_request" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_set_reward_status_internal", {
+          p_actor_user_id: user.id, p_tenant_id: tenant.id, p_reward_id: rewardId, p_active: active, p_reason: reason || null,
+        });
+        if (error) return reply(500, { ok: false, error: "reward_status_update_failed" });
+        if (!data || data.ok !== true) {
+          const status = data?.error === "forbidden" ? 403 : data?.error === "reward_not_found" ? 404 :
+            ["reward_out_of_stock", "demo_reward_not_activatable"].includes(data?.error) ? 409 : 400;
+          return reply(status, { ok: false, error: data?.error || "reward_status_update_failed" });
+        }
+        return reply(200, data);
+      }
+
       if (action === "update_product") {
         const productId = typeof body.product_id === "string" ? body.product_id : "";
         const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -541,12 +628,13 @@ Deno.serve(async (req: Request) => {
           partners: { key: "partners_page", size: 50 },
           campaigns: { key: "campaigns_page", size: 20 },
           products: { key: "products_page", size: 50 },
+          rewards: { key: "rewards_page", size: 50 },
           batches: { key: "batches_page", size: 20 },
           redemptions: { key: "redemptions_page", size: 20 },
         } as const;
 
         const pages: Record<keyof typeof pageSpecs, number> = {
-          partners: 0, campaigns: 0, products: 0, batches: 0, redemptions: 0,
+          partners: 0, campaigns: 0, products: 0, rewards: 0, batches: 0, redemptions: 0,
         };
         for (const [name, spec] of Object.entries(pageSpecs) as [keyof typeof pageSpecs, typeof pageSpecs[keyof typeof pageSpecs]][]) {
           const raw = body[spec.key];
@@ -581,7 +669,7 @@ Deno.serve(async (req: Request) => {
         partnersQuery = partnersQuery.order("created_at", { ascending: false }).order("id", { ascending: false })
           .range(pages.partners * pageSpecs.partners.size, (pages.partners + 1) * pageSpecs.partners.size - 1);
 
-        const [partners, campaigns, products, batches, redemptions] = await Promise.all([
+        const [partners, campaigns, products, rewards, batches, redemptions] = await Promise.all([
           partnersQuery,
           admin.from("campaigns")
             .select("id,name,status,starts_at,ends_at,budget_minor_units,currency,rules,created_at", { count: "exact" })
@@ -591,6 +679,10 @@ Deno.serve(async (req: Request) => {
             .select("id,sku,name,pack_size,active,created_at", { count: "exact" })
             .eq("tenant_id", tenant.id).order("name").order("id")
             .range(pages.products * pageSpecs.products.size, (pages.products + 1) * pageSpecs.products.size - 1),
+          admin.from("rewards")
+            .select("id,slug,name,name_hi,description,description_hi,category,points_cost,stock_quantity,active,is_demo,sort_order,created_at", { count: "exact" })
+            .eq("tenant_id", tenant.id).order("sort_order").order("name").order("id")
+            .range(pages.rewards * pageSpecs.rewards.size, (pages.rewards + 1) * pageSpecs.rewards.size - 1),
           admin.from("qr_issuance_batches")
             .select("id,product_id,campaign_id,requested_count,points_value,entitlement_role,status,created_at,completed_at", { count: "exact" })
             .eq("tenant_id", tenant.id).order("created_at", { ascending: false }).order("id", { ascending: false })
@@ -600,7 +692,7 @@ Deno.serve(async (req: Request) => {
             .eq("tenant_id", tenant.id).order("created_at", { ascending: false }).order("id", { ascending: false })
             .range(pages.redemptions * pageSpecs.redemptions.size, (pages.redemptions + 1) * pageSpecs.redemptions.size - 1),
         ]);
-        if ([partners, campaigns, products, batches, redemptions].some(x => x.error)) {
+        if ([partners, campaigns, products, rewards, batches, redemptions].some(x => x.error)) {
           return reply(500, { ok: false, error: "admin_dashboard_load_failed" });
         }
 
@@ -644,6 +736,7 @@ Deno.serve(async (req: Request) => {
                 partners: partners.count,
                 campaigns: campaigns.count,
                 products: products.count,
+                rewards: rewards.count,
                 batches: batches.count,
                 redemptions: redemptions.count,
               })[name] ?? 0,
@@ -655,12 +748,13 @@ Deno.serve(async (req: Request) => {
           ok: true,
           tenant,
           role: membership.role,
-          capabilities: { product_management: true, audit_log_viewer: true, fraud_case_management: true },
+          capabilities: { product_management: true, reward_management: true, audit_log_viewer: true, fraud_case_management: true },
           metrics: metricsResult.data,
           pagination,
           partners: partners.data || [],
           campaigns: campaigns.data || [],
           products: products.data || [],
+          rewards: rewards.data || [],
           batches: batches.data || [],
           redemptions: enrichedRedemptions,
         });

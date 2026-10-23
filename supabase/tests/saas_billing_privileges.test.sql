@@ -60,6 +60,18 @@ BEGIN
     RAISE EXCEPTION 'billing RPC grants are not service-role-only';
   END IF;
 
-  RAISE NOTICE 'PASS: SaaS billing tables and RPCs are private/service-role-only';
+  IF has_function_privilege('anon', 'public.reserve_saas_checkout_internal(uuid,uuid,uuid,text,text)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.reserve_saas_checkout_internal(uuid,uuid,uuid,text,text)', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.reserve_saas_checkout_internal(uuid,uuid,uuid,text,text)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.finalize_saas_checkout_internal(uuid,text,text)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.finalize_saas_checkout_internal(uuid,text,text)', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.finalize_saas_checkout_internal(uuid,text,text)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.fail_saas_checkout_reservation_internal(uuid,integer)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.fail_saas_checkout_reservation_internal(uuid,integer)', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'public.fail_saas_checkout_reservation_internal(uuid,integer)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'checkout RPC grants are not service-role-only';
+  END IF;
+
+  RAISE NOTICE 'PASS: SaaS billing and checkout tables/RPCs are private/service-role-only';
 END
 $saas_billing_security$;

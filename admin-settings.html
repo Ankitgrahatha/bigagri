@@ -28,13 +28,13 @@
           <p class="admin-note danger-note">Live Supabase Auth SMTP is not configured by this form yet. Saving preferences does not change email delivery. If you enter an SMTP password before integration is installed, it will be rejected and the field cleared.</p>
           <div class="admin-actions"><button id="saveEmail" class="primary-button" type="button">Save email preferences</button><button id="testEmail" class="secondary-button" type="button" disabled aria-disabled="true" title="Unavailable until the privileged email integration is installed">Test email unavailable</button></div><p class="admin-note" id="testEmailUnavailable">Test delivery is disabled: no email provider is connected to Supabase Auth yet. This page cannot send a test message.</p>
         </section>
-        <section class="admin-card"><h2>Authentication</h2><p class="admin-note">Security-first controls for account creation and confirmation.</p>
+        <section class="admin-card"><h2>Authentication preferences</h2><p class="admin-note danger-note">These values are saved as application preferences only. They do not change Supabase Auth site URL, redirect allowlist, signup policy, or email-confirmation enforcement. Configure those controls in the Supabase dashboard until the privileged Auth Management API integration is implemented.</p>
           <label for="siteUrl">Application site URL</label><input id="siteUrl" type="url" placeholder="https://bigagri.vercel.app">
           <label for="redirects">Allowed redirect URLs (one per line)</label><textarea id="redirects" placeholder="https://bigagri.vercel.app/**"></textarea>
           <label><input id="signupEnabled" type="checkbox" checked style="width:auto"> Allow new signups</label>
           <label><input id="emailConfirm" type="checkbox" checked style="width:auto"> Require email confirmation</label>
           <p class="admin-note">Email confirmation stays enabled by default. Never add wildcard redirect domains you do not control.</p>
-          <div class="admin-actions"><button id="saveAuth" class="primary-button" type="button">Save authentication settings</button></div>
+          <div class="admin-actions"><button id="saveAuth" class="primary-button" type="button">Save authentication preferences</button></div>
         </section>
         <section class="admin-card"><h2>Email templates</h2><p class="admin-note">Edit copy used by the application. Supabase Auth's own templates require the privileged Auth configuration integration to publish.</p>
           <label for="confirmSubject">Confirmation email subject</label><input id="confirmSubject" maxlength="180" value="Confirm your Growta RewardLoop account">

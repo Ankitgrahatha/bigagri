@@ -10,6 +10,7 @@ const workflow = readFileSync(
 test("billing scheduler runs at bounded cadence and can open an operator alert", () => {
   assert.match(workflow, /cron: "\*\/5 \* \* \* \*"/);
   assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /vars\.REWARDLOOP_BILLING_MONITOR_ENABLED == 'true'/);
   assert.match(workflow, /issues: write/);
   assert.match(workflow, /timeout-minutes: 3/);
 });

@@ -107,7 +107,7 @@ checks AS (
       SELECT count(*) = 24
         AND encode(extensions.digest(convert_to(coalesce(string_agg(
           concat_ws('|',COALESCE(r.rolname,'PUBLIC'),COALESCE(n.nspname,'ALL_SCHEMAS'),d.defaclobjtype,d.defaclacl::text),
-          E'\\n' ORDER BY COALESCE(r.rolname,'PUBLIC'),COALESCE(n.nspname,'ALL_SCHEMAS'),d.defaclobjtype),''),'UTF8'),'sha256'),'hex')
+          E'\n' ORDER BY COALESCE(r.rolname,'PUBLIC'),COALESCE(n.nspname,'ALL_SCHEMAS'),d.defaclobjtype),''),'UTF8'),'sha256'),'hex')
           = '642e160f2667b54bde03a979af4eb14bb818281cb3f628f4910ab24426bb1792'
       FROM pg_default_acl d
       LEFT JOIN pg_roles r ON r.oid=d.defaclrole

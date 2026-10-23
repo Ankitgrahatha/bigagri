@@ -26,3 +26,12 @@ test("admin settings function allowlists fields and validates redirect URL schem
   assert.match(source, /allowed\.updated_by=user\.id/);
   assert.match(source, /unknown_action/);
 });
+
+test("admin settings API bounds request bytes and rejects malformed JSON shapes", () => {
+  assert.match(source, /MAX_BODY_BYTES = 32 \* 1024/);
+  assert.match(source, /async function readLimitedJson\(req:Request\)/);
+  assert.match(source, /total>MAX_BODY_BYTES/);
+  assert.match(source, /parsed\.tooLarge\?413:400/);
+  assert.match(source, /!parsed\.value\|\|typeof parsed\.value!=="object"\|\|Array\.isArray\(parsed\.value\)/);
+  assert.doesNotMatch(source, /const body=await req\.json\(\)/);
+});

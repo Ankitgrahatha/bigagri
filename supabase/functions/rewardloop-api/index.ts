@@ -187,6 +187,10 @@ Deno.serve(async (req: Request) => {
       admin_fraud_cases: { limit: 30, windowSeconds: 60 },
       create_fraud_case: { limit: 10, windowSeconds: 60 },
       update_fraud_case: { limit: 20, windowSeconds: 60 },
+      admin_tenant_invitations: { limit: 30, windowSeconds: 60 },
+      create_tenant_invitation: { limit: 5, windowSeconds: 60 },
+      revoke_tenant_invitation: { limit: 10, windowSeconds: 60 },
+      accept_tenant_invitation: { limit: 5, windowSeconds: 900 },
     };
     const policy = ratePolicy[action];
     if (policy) {
@@ -197,6 +201,26 @@ Deno.serve(async (req: Request) => {
         if (origin && ALLOWED_ORIGINS.has(origin)) headers.set("Access-Control-Allow-Origin", origin);
         return new Response(JSON.stringify({ ok: false, error: "rate_limited" }), { status: 429, headers });
       }
+    }
+
+    // Invitation acceptance is intentionally available before the caller has tenant
+    // membership. The database RPC verifies the confirmed auth email and one-time hash.
+    if (action === "accept_tenant_invitation") {
+      const token = typeof body.token === "string" ? body.token.trim().toLowerCase() : "";
+      if (!/^[a-f0-9]{64}$/.test(token)) return reply(400, { ok: false, error: "invalid_invitation" });
+      const tokenHashBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+      const tokenHash = Array.from(new Uint8Array(tokenHashBytes), byte => byte.toString(16).padStart(2, "0")).join("");
+      const { data, error } = await admin.rpc("rewardloop_accept_tenant_invitation_internal", {
+        p_actor_user_id: user.id, p_token_hash: tokenHash,
+      });
+      if (error) return reply(500, { ok: false, error: "invitation_acceptance_failed" });
+      if (!data || data.ok !== true) {
+        const status = data?.error === "email_not_confirmed" || data?.error === "invitation_email_mismatch" ? 403 :
+          data?.error === "tenant_inactive" || data?.error === "membership_conflict" ? 409 :
+          data?.error === "invitation_expired" ? 410 : data?.error === "invalid_invitation" ? 404 : 400;
+        return reply(status, { ok: false, error: data?.error || "invitation_acceptance_failed" });
+      }
+      return reply(200, data);
     }
 
     // List only active tenants for which this authenticated user has an active
@@ -323,7 +347,7 @@ Deno.serve(async (req: Request) => {
       return reply(200, data && typeof data === "object" ? data : { ok: false, error: "unexpected_redemption_response" });
     }
 
-    if (["admin_dashboard", "admin_audit_logs", "admin_record_export", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status", "update_product", "create_reward", "update_reward", "set_reward_status", "admin_fraud_cases", "create_fraud_case", "update_fraud_case"].includes(action)) {
+    if (["admin_dashboard", "admin_audit_logs", "admin_record_export", "verify_partner", "issue_qr_batch", "revoke_qr_batch", "resolve_redemption", "set_campaign_status", "create_campaign", "set_point_value", "create_product", "set_product_status", "update_product", "create_reward", "update_reward", "set_reward_status", "admin_fraud_cases", "create_fraud_case", "update_fraud_case", "admin_tenant_invitations", "create_tenant_invitation", "revoke_tenant_invitation"].includes(action)) {
       // Keep legacy callers working on the original tenant, but allow an explicit
       // tenant context only after checking active membership below.
       const requestedTenantSlug = typeof body.tenant_slug === "string" ? body.tenant_slug.trim() : TENANT_SLUG;
@@ -336,6 +360,65 @@ Deno.serve(async (req: Request) => {
         .eq("tenant_id", tenant.id).eq("user_id", user.id).eq("status", "active").in("role", ["brand_admin", "super_admin"]).maybeSingle();
       if (membershipError) return reply(500, { ok: false, error: "admin_authorization_check_failed" });
       if (!membership) return reply(403, { ok: false, error: "admin_access_required" });
+
+      if (action === "admin_tenant_invitations") {
+        const page = Number(body.invitations_page ?? 0);
+        if (!Number.isSafeInteger(page) || page < 0 || page > 10000) {
+          return reply(400, { ok: false, error: "invalid_invitations_page" });
+        }
+        const { data, error, count } = await admin.from("tenant_invitations")
+          .select("id,email,role,status,invited_by,accepted_by,expires_at,accepted_at,revoked_at,created_at", { count: "exact" })
+          .eq("tenant_id", tenant.id).order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(page * 20, page * 20 + 19);
+        if (error) return reply(500, { ok: false, error: "tenant_invitations_load_failed" });
+        return reply(200, { ok: true, invitations: data || [], pagination: { page, page_size: 20, total: count || 0 } });
+      }
+
+      if (action === "create_tenant_invitation") {
+        const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+        if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return reply(400, { ok: false, error: "invalid_invitation_email" });
+        }
+        const tokenBytes = new Uint8Array(32);
+        crypto.getRandomValues(tokenBytes);
+        const token = Array.from(tokenBytes, byte => byte.toString(16).padStart(2, "0")).join("");
+        const tokenHashBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+        const tokenHash = Array.from(new Uint8Array(tokenHashBytes), byte => byte.toString(16).padStart(2, "0")).join("");
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { data, error } = await admin.rpc("rewardloop_create_tenant_invitation_internal", {
+          p_actor_user_id: user.id, p_tenant_id: tenant.id, p_email: email,
+          p_role: "brand_admin", p_token_hash: tokenHash, p_expires_at: expiresAt,
+        });
+        if (error) return reply(500, { ok: false, error: "tenant_invitation_create_failed" });
+        if (!data || data.ok !== true) {
+          const status = data?.error === "forbidden" ? 403 :
+            ["invitation_already_pending", "already_tenant_admin"].includes(data?.error) ? 409 :
+            data?.error === "tenant_inactive" ? 503 : 400;
+          return reply(status, { ok: false, error: data?.error || "tenant_invitation_create_failed" });
+        }
+        // Return the raw token only inside this one-time link response. It is never persisted.
+        const inviteOrigin = origin && ALLOWED_ORIGINS.has(origin) ? origin : DEFAULT_ALLOWED_ORIGINS[0];
+        const inviteUrl = new URL("/admin.html", inviteOrigin);
+        inviteUrl.hash = `invite=${token}`;
+        return reply(201, { ...data, invite_url: inviteUrl.toString() });
+      }
+
+      if (action === "revoke_tenant_invitation") {
+        const invitationId = typeof body.invitation_id === "string" ? body.invitation_id : "";
+        const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(invitationId) || reason.length < 5) {
+          return reply(400, { ok: false, error: "invalid_invitation_revoke_request" });
+        }
+        const { data, error } = await admin.rpc("rewardloop_revoke_tenant_invitation_internal", {
+          p_actor_user_id: user.id, p_tenant_id: tenant.id, p_invitation_id: invitationId, p_reason: reason,
+        });
+        if (error) return reply(500, { ok: false, error: "tenant_invitation_revoke_failed" });
+        if (!data || data.ok !== true) {
+          const status = data?.error === "forbidden" ? 403 : data?.error === "invitation_not_found" ? 404 : 400;
+          return reply(status, { ok: false, error: data?.error || "tenant_invitation_revoke_failed" });
+        }
+        return reply(200, data);
+      }
 
       if (action === "admin_fraud_cases") {
         const rawPage = Number(body.fraud_cases_page ?? 0);
@@ -748,7 +831,7 @@ Deno.serve(async (req: Request) => {
           ok: true,
           tenant,
           role: membership.role,
-          capabilities: { product_management: true, reward_management: true, audit_log_viewer: true, fraud_case_management: true },
+          capabilities: { product_management: true, reward_management: true, tenant_invitations: true, audit_log_viewer: true, fraud_case_management: true },
           metrics: metricsResult.data,
           pagination,
           partners: partners.data || [],

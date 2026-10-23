@@ -50,3 +50,12 @@ test("provider failures never trigger automatic duplicate subscription creation"
   assert.match(endpoint, /notes:[\s\S]*growta_subscription_id/);
   assert.match(config, /\[functions\.create-razorpay-subscription\]\s*verify_jwt = true/);
 });
+
+test("checkout CORS is exact-origin allowlisted and supports idempotency preflight", () => {
+  assert.match(endpoint, /DEFAULT_ALLOWED_ORIGINS = \["https:\/\/bigagri\.vercel\.app", "https:\/\/growta-rewardloop\.vercel\.app"\]/);
+  assert.match(endpoint, /ALLOWED_ORIGINS\.has\(origin\)/);
+  assert.match(endpoint, /if \(origin && !ALLOWED_ORIGINS\.has\(origin\)\)/);
+  assert.match(endpoint, /Access-Control-Allow-Headers[^\n]*idempotency-key/i);
+  assert.match(endpoint, /Access-Control-Allow-Methods[^\n]*POST, OPTIONS/i);
+  assert.doesNotMatch(endpoint, /Access-Control-Allow-Origin["']?\s*:\s*["']\*["']/i);
+});

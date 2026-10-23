@@ -143,6 +143,40 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The captured fingerprint describes the pre-baseline state. Later reviewed
+          # migrations legitimately change schema/ACLs, so check it only before repair.
+          migration_output="$(supabase migration list --linked)"
+          printf '%s\n' "$migration_output"
+          baseline_state="$(python3 - "$migration_output" <<'PY'
+          import re, sys
+          baseline = "20261021083000"
+          historical = {
+            "20261021083115","20261021083135","20261021083153","20261021083301",
+            "20261021083322","20261021083507","20261021083518","20261021083620",
+            "20261021083632","20261021113806","20261021114631","20261021114919",
+            "20261021121229",
+          }
+          remote = set()
+          for line in sys.argv[1].splitlines():
+              cells = line.split("|")
+              if len(cells) < 2:
+                  continue
+              match = re.search(r"(?<!\d)(\d{14})(?!\d)", cells[1])
+              if match:
+                  remote.add(match.group(1))
+          if not historical.issubset(remote):
+              raise SystemExit("Remote migration history does not match the expected historical baseline.")
+          if baseline in remote:
+              print("yes")
+          elif remote == historical:
+              print("no")
+          else:
+              raise SystemExit("Unexpected remote migration history before baseline repair; refusing production mutation.")
+          PY
+          )"
+          if [[ "$baseline_state" == "yes" ]]; then
+            echo "PASS: baseline is already recorded; skip the initial-state fingerprint check."
+          else
           python3 - <<'PY' > /tmp/rewardloop-live-schema-query.json
           import json
           from pathlib import Path
@@ -167,8 +201,9 @@ jobs:
               rows = payload
           if not isinstance(rows, list) or len(rows) != 1 or rows[0].get("baseline_matches") is not True:
               raise SystemExit("Live schema does not match the captured baseline, or the parity response was unexpected. No migration history or DDL was changed.")
-          print("PASS: live schema fingerprints, function security and table ACLs match the captured baseline.")
+          print("PASS: live schema fingerprints, function security, table ACLs and default ACLs match the captured baseline.")
           PY
+          fi
 
       - name: Reconcile only the verified baseline and validate migration allowlist
         shell: bash

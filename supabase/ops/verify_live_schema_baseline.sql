@@ -103,6 +103,16 @@ checks AS (
       SELECT 1 FROM expected_table_grants e LEFT JOIN live_table_grants a USING(table_name)
       WHERE a.table_name IS NULL OR a.grants_md5<>e.grants_md5
     ) AS table_acl_match,
+    (
+      SELECT count(*) = 24
+        AND encode(extensions.digest(convert_to(coalesce(string_agg(
+          concat_ws('|',COALESCE(r.rolname,'PUBLIC'),COALESCE(n.nspname,'ALL_SCHEMAS'),d.defaclobjtype,d.defaclacl::text),
+          E'\n' ORDER BY COALESCE(r.rolname,'PUBLIC'),COALESCE(n.nspname,'ALL_SCHEMAS'),d.defaclobjtype),''),'UTF8'),'sha256'),'hex')
+          = '642e160f2667b54bde03a979af4eb14bb818281cb3f628f4910ab24426bb1792'
+      FROM pg_default_acl d
+      LEFT JOIN pg_roles r ON r.oid=d.defaclrole
+      LEFT JOIN pg_namespace n ON n.oid=d.defaclnamespace
+    ) AS default_acl_match,
     NOT has_schema_privilege('anon','private','USAGE')
       AND NOT has_schema_privilege('authenticated','private','USAGE')
       AND NOT has_function_privilege('anon','private.claim_qr(uuid,text,uuid,text,text)','EXECUTE')
@@ -131,6 +141,6 @@ checks AS (
       AND has_function_privilege('service_role','private.verify_partner(uuid,uuid,uuid,text,text)','EXECUTE')
       AS function_acl_match
 )
-SELECT categories_match, functions_match, table_acl_match, function_acl_match,
-  (categories_match AND functions_match AND table_acl_match AND function_acl_match) AS baseline_matches
+SELECT categories_match, functions_match, table_acl_match, default_acl_match, function_acl_match,
+  (categories_match AND functions_match AND table_acl_match AND default_acl_match AND function_acl_match) AS baseline_matches
 FROM checks;

@@ -67,3 +67,20 @@ test("live schema parity probe is read-only and matches the captured catalog fin
  assert.match(liveParitySql,/baseline_matches/);
  assert.doesNotMatch(liveParitySql,/\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|GRANT|REVOKE)\b/i);
 });
+
+
+test("live schema parity probe checks captured default ACL fingerprint",()=>{
+ assert.match(liveParitySql,/default_acl_match/);
+ assert.match(liveParitySql,/642e160f2667b54bde03a979af4eb14bb818281cb3f628f4910ab24426bb1792/);
+ assert.match(liveParitySql,/baseline_matches AND default_acl_match|default_acl_match AND function_acl_match/);
+});
+
+
+test("pre-baseline fingerprint check is skipped after baseline migration is already recorded",()=>{
+ const gate=workflow.slice(workflow.indexOf("Verify live schema fingerprints before migration-history repair"),workflow.indexOf("Reconcile only the verified baseline and validate migration allowlist"));
+ assert.match(gate,/supabase migration list --linked/);
+ assert.match(gate,/20261021083000/);
+ assert.match(gate,/baseline is already recorded/);
+ assert.match(gate,/baseline_state/);
+ assert.match(gate,/skip the initial-state fingerprint check/);
+});

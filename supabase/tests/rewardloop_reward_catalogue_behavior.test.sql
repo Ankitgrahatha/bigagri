@@ -126,8 +126,14 @@ BEGIN
    WHERE tenant_id=v_tenant_a AND entity_type='reward' AND entity_id=v_reward_id;
   IF v_count <> 4 THEN RAISE EXCEPTION 'create/update/activate/deactivate audit count mismatch: %',v_count; END IF;
 
-  IF has_table_privilege('anon','public.rewards','SELECT')
-     OR has_table_privilege('authenticated','public.rewards','SELECT')
+  IF has_table_privilege('anon','public.rewards','INSERT')
+     OR has_table_privilege('anon','public.rewards','UPDATE')
+     OR has_table_privilege('anon','public.rewards','DELETE')
+     OR has_table_privilege('anon','public.rewards','TRUNCATE')
+     OR has_table_privilege('authenticated','public.rewards','INSERT')
+     OR has_table_privilege('authenticated','public.rewards','UPDATE')
+     OR has_table_privilege('authenticated','public.rewards','DELETE')
+     OR has_table_privilege('authenticated','public.rewards','TRUNCATE')
      OR has_function_privilege('anon','public.rewardloop_create_reward_internal(uuid,uuid,text,text,text,text,text,text,integer,integer,integer)','EXECUTE')
      OR has_function_privilege('authenticated','public.rewardloop_update_reward_internal(uuid,uuid,uuid,text,text,text,text,text,integer,integer,integer)','EXECUTE')
      OR NOT has_function_privilege('service_role','public.rewardloop_set_reward_status_internal(uuid,uuid,uuid,boolean,text)','EXECUTE') THEN

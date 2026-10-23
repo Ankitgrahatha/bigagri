@@ -81,5 +81,6 @@ test("pre-baseline fingerprint check is skipped after baseline migration is alre
  assert.match(gate,/supabase migration list --linked/);
  assert.match(gate,/20261021083000/);
  assert.match(gate,/Baseline already recorded/);
- assert.match(gate,/if \\[\\[ "\$baseline_already_recorded" == "yes" \\]\\]/);
+ assert.match(gate,/baseline_state/);
+ assert.match(gate,/skip the initial-state fingerprint check/);
 });

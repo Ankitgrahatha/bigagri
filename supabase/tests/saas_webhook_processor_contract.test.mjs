@@ -57,6 +57,10 @@ test("processor worker requires a dedicated secret and never logs payment payloa
   assert.match(worker, /x-processor-secret/);
   assert.match(worker, /constantTimeEqual\(suppliedSecret, expectedSecret\)/i);
   assert.match(worker, /process_saas_payment_webhook_batch_internal/);
+  assert.match(worker, /async function readLimitedBody\(req: Request, maxBytes: number\)/);
+  assert.match(worker, /readLimitedBody\(req, 4096\)/);
+  assert.match(worker, /bodyBytes\.byteLength > 0/);
+  assert.match(worker, /Object\.keys\(input\)\.some/);
   assert.match(worker, /exhausted: result\.exhausted/);
   assert.match(config, /\[functions\.process-razorpay-webhooks\]\s*verify_jwt = false/);
   assert.match(worker, /console\.error\("razorpay_webhook_batch_failed", \{ code: error\.code \?\? "unknown" \}\)/);
